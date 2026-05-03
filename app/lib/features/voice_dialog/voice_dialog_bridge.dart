@@ -119,7 +119,7 @@ class VoiceDialogBridge {
   /// 若出现「先听到声、后看到字」，把该值调小或置 0。
   static const int _aiReplyDelayMs = int.fromEnvironment(
     'VOLC_AI_REPLY_DELAY_MS',
-    defaultValue: 500,
+    defaultValue: 1000,
   );
 
   StreamSubscription<dynamic>? _nativeSub;
@@ -250,7 +250,7 @@ class VoiceDialogBridge {
           return;
         }
         final captured = _aiDelayEpoch;
-        Future<void>.delayed(Duration(milliseconds: _aiReplyDelayMs), () {
+        Future<void>.delayed(const Duration(milliseconds: _aiReplyDelayMs), () {
           if (captured != _aiDelayEpoch) return;
           if (_controller.isClosed) return;
           _controller.add(event);

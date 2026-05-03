@@ -110,6 +110,37 @@ bool _utteranceLooksLikeDoubaoDanceRequest(String raw) {
   return mentionsDanceCn() || permissiveCn() || mentionsDanceEn();
 }
 
+/// 彩蛋视频：用户问「养猫」语义时在原皮豆包分支加载。
+const String _kDoubaoCatVideoBase = 'video/doubaocat';
+
+/// 彩蛋固定台词（与 [PetTemplate] 豆包人设中的说明一致）。
+const String _kDoubaoCatAssistantLine = '这是我的猫猫，她叫大橘，很可爱吧，它最爱吃的零食是猫条哦';
+
+/// 彩蛋防抖，避免短时间重复打断。
+const Duration _kDoubaoCatEggDebounce = Duration(seconds: 3);
+
+/// 用户是否在问「养猫 / 有没有猫」等（原皮豆包彩蛋）。
+bool _utteranceLooksLikeDoubaoCatEggQuestion(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return false;
+  final lc = s.toLowerCase();
+  if (s.contains('养猫')) return true;
+  if (RegExp(r'(有没有|有木有).{0,8}猫').hasMatch(s)) return true;
+  if (RegExp(r'(你家|家里有).{0,8}猫').hasMatch(s)) return true;
+  if (RegExp(r'(你|您).{0,8}(养了|养了没|有没有养).{0,8}猫').hasMatch(s)) {
+    return true;
+  }
+  if (RegExp(r'^.{0,2}(你有养猫吗|你有没有养猫)').hasMatch(s)) return true;
+
+  if (lc.contains('cat')) {
+    if (lc.contains('do you have') && lc.contains('cat')) {
+      return true;
+    }
+    if (lc.contains('own ') && lc.contains('cat')) return true;
+  }
+  return false;
+}
+
 /// 沉浸页角色视频相对「铺满视口」的缩放（<1 略缩小，四周留黑边）
 const double _kChatHeroVideoScaleFactor = 0.78;
 
@@ -149,6 +180,9 @@ enum _ChatVideoPhase {
   down,
   koreanShake,
   koreanDance,
+
+  /// 原皮豆包彩蛋：doubaocat.mov。
+  doubaoCat,
   askIntro,
   askLoopAlt,
   askLoop,
@@ -191,14 +225,14 @@ const List<_HeroAppearanceOption> _kHeroAppearanceOptions = [
     id: 'ip0',
     name: '豆包',
     subtitle: '精英',
-    avatarAsset: 'images/ip0.png',
+    avatarAsset: 'images/doubaojingying.png',
     videoAsset: 'video/doubao03/doubao01.mov',
   ),
   _HeroAppearanceOption(
     id: 'ip1',
     name: '豆包',
     subtitle: '韩系',
-    avatarAsset: 'images/ip1.png',
+    avatarAsset: 'images/doubaohanxi.png',
     doubaoHeroClipDirectory: _kDoubaoKoreanHeroClipDirectory,
   ),
   _HeroAppearanceOption(
@@ -355,6 +389,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   bool _koreanShakeClipPlaying = false;
   bool _koreanDanceClipPlaying = false;
 
+  VideoPlayerController? _doubaoCatCtrl;
+  bool _doubaoCatClipPlaying = false;
+  DateTime? _lastDoubaoCatEggPlayedAt;
+
   /// 默认豆包形象中，doubao03 当前已连续播放次数；播满 2 次后回到 doubao02。
   int _doubao03PlayCount = 0;
 
@@ -460,6 +498,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   /// 并发 `_syncVolcEngineWithPersona` 时只保留最后一次意图（避免 stop/start 交错）。
   int _volcVoiceSyncSeq = 0;
+  bool _volcRecovering = false;
+  DateTime? _lastVolcAutoRecoverAt;
 
   /// 无历史消息且未切键盘：展示底部语音沉浸栏；有历史消息：始终可语音。
   /// WebSocket 未连上但 REST 已拿到会话时，不再显示「连接中」。
@@ -541,6 +581,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   bool get _isKoreanHeroSelected =>
       _selectedDoubaoHeroClipDirectory == _kDoubaoKoreanHeroClipDirectory;
+
+  bool get _isDefaultDoubaoHero =>
+      _selectedHeroVideoAsset == null &&
+      _selectedDoubaoHeroClipDirectory == null;
 
   /// 语音页点键盘进入的全屏文字聊天：与 [widget.initialMode] 独立，不新开 Route，
   /// 避免第二个 Socket / 第二份 [_messages] 与语音页「接不上」。
@@ -823,6 +867,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         _videoAssetCandidates(_kDoubaoAskOutroBase),
         loop: false,
       ),
+      _initFirstWorking(
+        _videoAssetCandidates(_kDoubaoCatVideoBase),
+        loop: false,
+      ),
     ]);
     if (!mounted) return;
 
@@ -834,6 +882,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _askLoopAltCtrl = results[5];
     _askLoopCtrl = results[6];
     _askOutroCtrl = results[7];
+    _doubaoCatCtrl = results[8];
 
     final anyOk = results.any((c) => c != null);
     if (!anyOk) {
@@ -853,6 +902,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _stopKoreanShakeMotionListeners();
     _koreanShakeClipPlaying = false;
     _koreanDanceClipPlaying = false;
+    _doubaoCatClipPlaying = false;
     _helloCtrl?.removeListener(_bgOnHelloTick);
     _haitCtrl?.removeListener(_bgOnHaitTick);
     _breatheCtrl?.removeListener(_bgOnBreatheTick);
@@ -863,6 +913,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _askOutroCtrl?.removeListener(_bgOnAskOutroTick);
     _koreanShakeCtrl?.removeListener(_bgOnKoreanShakeTick);
     _koreanDanceCtrl?.removeListener(_bgOnKoreanDanceTick);
+    _doubaoCatCtrl?.removeListener(_bgOnDoubaoCatTick);
     final ctrls = <VideoPlayerController?>[
       _helloCtrl,
       _haitCtrl,
@@ -874,6 +925,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _askOutroCtrl,
       _koreanDanceCtrl,
       _koreanShakeCtrl,
+      _doubaoCatCtrl,
     ];
     _helloCtrl = null;
     _haitCtrl = null;
@@ -885,6 +937,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _askOutroCtrl = null;
     _koreanShakeCtrl = null;
     _koreanDanceCtrl = null;
+    _doubaoCatCtrl = null;
     _doubao03PlayCount = 0;
     await Future.wait(
       ctrls.whereType<VideoPlayerController>().map((c) async {
@@ -1001,6 +1054,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   bool _isKoreanDanceRequest(String utterance) {
     return _isKoreanHeroSelected &&
         _utteranceLooksLikeDoubaoDanceRequest(utterance);
+  }
+
+  bool _isDoubaoCatEggRequest(String utterance) {
+    return _isDefaultDoubaoHero &&
+        _utteranceLooksLikeDoubaoCatEggQuestion(utterance);
   }
 
   void _emitSavedTurn(String userText, String assistantText) {
@@ -1158,6 +1216,141 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     unawaited(_bgBeginHait());
   }
 
+  void _resumeHeroLoopAfterDoubaoCatEgg() {
+    _doubaoCatClipPlaying = false;
+    _askVideoEndDebounceTimer?.cancel();
+    _askVideoActive = false;
+    _askLoopRestarting = false;
+    _askVideoGeneration++;
+    unawaited(_bgBeginHait());
+  }
+
+  void _maybeTriggerDoubaoCatFromUtterance(String utterance) {
+    if (!_isDoubaoCatEggRequest(utterance)) return;
+    unawaited(_tryPlayDoubaoCatClipFromUtterance());
+  }
+
+  Future<void> _tryPlayDoubaoCatClipFromUtterance() async {
+    if (_disposed || !mounted || !_videoReady) return;
+    if (!_isDefaultDoubaoHero) return;
+    if (_askVideoActive) return;
+    if (_inlineTextMode || _showFullTextChat) return;
+    if (_doubaoCatClipPlaying || _videoPhase == _ChatVideoPhase.doubaoCat) {
+      return;
+    }
+    final c = _doubaoCatCtrl;
+    if (c == null || !c.value.isInitialized) return;
+
+    final now = DateTime.now();
+    final last = _lastDoubaoCatEggPlayedAt;
+    if (last != null && now.difference(last) < _kDoubaoCatEggDebounce) {
+      return;
+    }
+    _lastDoubaoCatEggPlayedAt = now;
+
+    _doubaoCatClipPlaying = true;
+    _bgPauseCurrent();
+
+    await c.setVolume(0); // 只播画面，不播视频音轨
+
+    c.removeListener(_bgOnDoubaoCatTick);
+    await c.pause();
+    await c.seekTo(Duration.zero);
+    c.addListener(_bgOnDoubaoCatTick);
+    await c.play();
+    if (_disposed || !mounted) return;
+    setState(() => _videoPhase = _ChatVideoPhase.doubaoCat);
+  }
+
+  void _bgOnDoubaoCatTick() {
+    final c = _doubaoCatCtrl;
+    if (c == null || !c.value.isInitialized) return;
+    final dur = c.value.duration;
+    if (dur == Duration.zero) return;
+    if (c.value.position + const Duration(milliseconds: 100) >= dur) {
+      c.removeListener(_bgOnDoubaoCatTick);
+      c.pause();
+      unawaited(c.seekTo(Duration.zero));
+      _resumeHeroLoopAfterDoubaoCatEgg();
+    }
+  }
+
+  void _finalizeVolcDoubaoCatEggRound(String userText) {
+    _volcSkipNextAiOutputs = true;
+    _volcCurrentUserText = '';
+    _finalizeDoubaoCatEggRound(userText);
+  }
+
+  void _finalizeDoubaoCatEggRound(String userText) {
+    final text = userText.trim();
+    if (text.isEmpty) return;
+
+    // 退出 ask 说话态，避免 _askVideoActive / 监听器阻塞猫猫彩蛋，也不与 ask 片叠播。
+    _clearAskVideoState();
+
+    _maybeTriggerDoubaoCatFromUtterance(text);
+    _sttFinalizeTimer?.cancel();
+    _sttFinalizeTimer = null;
+    _sttSessionBest = '';
+    _thinkingTimer?.cancel();
+
+    var alreadyCompleted = false;
+    _safeSetState(() {
+      _voiceTranscript = '';
+      if (_messages.length >= 2 &&
+          !_messages.last.isUser &&
+          _messages.last.content == _kDoubaoCatAssistantLine &&
+          _messages[_messages.length - 2].isUser) {
+        alreadyCompleted = true;
+        final lastUser = _messages[_messages.length - 2];
+        _messages[_messages.length - 2] = MessageModel(
+          id: lastUser.id,
+          role: lastUser.role,
+          content: _preferRicherTranscript(lastUser.content, text),
+          voicePlain: lastUser.voicePlain,
+          createdAt: lastUser.createdAt,
+        );
+      } else if (_messages.isNotEmpty && _messages.last.isUser) {
+        final last = _messages.last;
+        _messages[_messages.length - 1] = MessageModel(
+          id: last.id,
+          role: last.role,
+          content: _preferRicherTranscript(last.content, text),
+          voicePlain: last.voicePlain,
+          createdAt: last.createdAt,
+        );
+      } else {
+        _messages.add(MessageModel(
+          role: 'user',
+          content: text,
+          createdAt: DateTime.now(),
+        ));
+      }
+      if (!alreadyCompleted) {
+        _messages.add(MessageModel(
+          role: 'assistant',
+          content: _kDoubaoCatAssistantLine,
+          voicePlain: _kDoubaoCatAssistantLine,
+          createdAt: DateTime.now(),
+        ));
+      }
+      _isThinking = false;
+      _sdkAiSpeaking = false;
+      _sdkAiBuffer = _kDoubaoCatAssistantLine;
+      _streamingContent = '';
+      _thinkingContent = '';
+      _settledCount = _messages.length;
+    });
+    _scrollToBottom();
+    if (!alreadyCompleted) {
+      HapticFeedback.lightImpact();
+      _emitSavedTurn(text, _kDoubaoCatAssistantLine);
+      ref.invalidate(conversationsProvider);
+      _pendingSpeakAssistantReply = true;
+      unawaited(_speakAssistantReplyIfNeeded());
+    }
+  }
+
   bool _appearanceOptionIsSelected(_HeroAppearanceOption option) {
     final dir = option.doubaoHeroClipDirectory;
     if (dir != null) {
@@ -1188,6 +1381,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _bgPausedForExternalAudio = false;
       _koreanShakeClipPlaying = false;
       _koreanDanceClipPlaying = false;
+      _doubaoCatClipPlaying = false;
     });
     await _disposeBgVideoControllers();
     if (!mounted || _disposed) return;
@@ -1295,6 +1489,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (_videoPhase == _ChatVideoPhase.down) return;
     if (_videoPhase == _ChatVideoPhase.koreanShake) return;
     if (_videoPhase == _ChatVideoPhase.koreanDance) return;
+    if (_videoPhase == _ChatVideoPhase.doubaoCat) return;
     _bgPauseCurrent();
     await down.seekTo(Duration.zero);
     down.addListener(_bgOnDownTick);
@@ -1335,6 +1530,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (!mounted || _selectedHeroVideoAsset != null) return;
     if (_isKoreanHeroSelected) {
       _clearAskVideoState();
+      return;
+    }
+    if (_videoPhase == _ChatVideoPhase.doubaoCat || _doubaoCatClipPlaying) {
       return;
     }
     _askVideoEndDebounceTimer?.cancel();
@@ -1894,7 +2092,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       final gen = _askVideoGeneration;
       c.removeListener(_bgOnAskOutroTick);
       c.pause();
-      c.seekTo(Duration.zero);
       if (gen != _askVideoGeneration) return;
       _bgBeginHait();
     }
@@ -1919,6 +2116,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       case _ChatVideoPhase.koreanDance:
         _koreanDanceCtrl?.removeListener(_bgOnKoreanDanceTick);
         _koreanDanceCtrl?.pause();
+      case _ChatVideoPhase.doubaoCat:
+        _doubaoCatCtrl?.removeListener(_bgOnDoubaoCatTick);
+        _doubaoCatCtrl?.pause();
       case _ChatVideoPhase.askIntro:
         _askIntroCtrl?.removeListener(_bgOnAskIntroTick);
         _askIntroCtrl?.pause();
@@ -1936,9 +2136,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   /// 暂停四条背景视频（任意正在播放的），供 TTS / 实时语音与 STT 争用时调用。
   /// 仅 pause，不移除阶段 tick 监听器，避免恢复后无法 hello→hait→breathe 切换。
+  /// 猫猫彩蛋：`doubaoCat` 的视频已 mute，仅占画面；不因 TTS 暂停猫猫，避免画面整块停住。
   void _pauseBgVideoForExternalAudio() {
     if (!_videoReady || _bgPausedForExternalAudio) return;
-    final ctrls = [
+    final ctrls = <VideoPlayerController?>[
       _helloCtrl,
       _haitCtrl,
       _breatheCtrl,
@@ -1949,6 +2150,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _askOutroCtrl,
       _koreanDanceCtrl,
       _koreanShakeCtrl,
+      if (_videoPhase != _ChatVideoPhase.doubaoCat) _doubaoCatCtrl,
     ];
     final anyPlaying = ctrls.any((c) => c?.value.isPlaying ?? false);
     if (!anyPlaying) return;
@@ -1976,6 +2178,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         unawaited(_koreanShakeCtrl?.play());
       case _ChatVideoPhase.koreanDance:
         unawaited(_koreanDanceCtrl?.play());
+      case _ChatVideoPhase.doubaoCat:
+        unawaited(_doubaoCatCtrl?.play());
       case _ChatVideoPhase.askIntro:
         unawaited(_askIntroCtrl?.play());
       case _ChatVideoPhase.askLoopAlt:
@@ -2200,6 +2404,45 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     return ok;
   }
 
+  bool _shouldAutoRecoverVolc(String? errorMessage) {
+    final raw = errorMessage ?? '';
+    return raw.contains('55000001') || raw.contains('52000042');
+  }
+
+  Future<void> _recoverVolcSessionIfNeeded(String? errorMessage) async {
+    if (!_shouldAutoRecoverVolc(errorMessage)) return;
+    if (_volcRecovering || _disposed || !mounted || !_useVolcSdk) return;
+    if (_volcAppId.isEmpty || _volcAppToken.isEmpty || _isTextMode) return;
+
+    final now = DateTime.now();
+    final last = _lastVolcAutoRecoverAt;
+    if (last != null && now.difference(last) < const Duration(seconds: 3)) {
+      return;
+    }
+    _lastVolcAutoRecoverAt = now;
+    _volcRecovering = true;
+    _safeSetState(() {
+      _volcConnected = false;
+      _volcLastError = '连接波动，正在自动恢复...';
+    });
+
+    try {
+      _volcVoiceParamKeyStarted = null;
+      await _voiceBridge.stopDialog();
+      if (_disposed || !mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      final ok = await _syncVolcEngineWithPersona();
+      if (!ok && mounted && !_disposed) {
+        _safeSetState(() {
+          _volcConnected = false;
+          _volcLastError = errorMessage ?? '语音连接恢复失败';
+        });
+      }
+    } finally {
+      _volcRecovering = false;
+    }
+  }
+
   Future<void> _initVolcVoice() async {
     // iOS 上严禁在 Volc E2E 路线里同时启 speech_to_text：
     // 两者都会抢 AVAudioSession / SFSpeechRecognizer，
@@ -2299,9 +2542,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   void _onVolcEvent(VoiceDialogEvent event) {
     if (!mounted) return;
     debugPrint('[VolcVoice] event=$event');
+    if (_volcRecovering &&
+        event.type != VoiceDialogEventType.connected &&
+        event.type != VoiceDialogEventType.error &&
+        event.type != VoiceDialogEventType.disconnected) {
+      return;
+    }
     switch (event.type) {
       case VoiceDialogEventType.connected:
         debugPrint('[VolcVoice] connected');
+        _volcRecovering = false;
         _safeSetState(() {
           _volcConnected = true;
           _volcLastError = null;
@@ -2313,6 +2563,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       case VoiceDialogEventType.userFinalText:
         final text = (event.text ?? '').trim();
         if (text.isEmpty) break;
+        if (_isDoubaoCatEggRequest(text)) {
+          _finalizeVolcDoubaoCatEggRound(text);
+          break;
+        }
         if (_isKoreanDanceRequest(text)) {
           _finalizeVolcKoreanDanceHaoyaRound(text);
           break;
@@ -2459,6 +2713,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           _volcLastError = event.errorMessage;
         });
         _scheduleAskOutro();
+        unawaited(_recoverVolcSessionIfNeeded(event.errorMessage));
 
       case VoiceDialogEventType.disconnected:
         _safeSetState(() {
@@ -2467,6 +2722,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           _volcConnected = false;
         });
         _scheduleAskOutro();
+        unawaited(_recoverVolcSessionIfNeeded(event.errorMessage));
     }
   }
 
@@ -2562,6 +2818,14 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   void _sendVoiceMessage(String text, {bool speakAssistantReply = false}) {
     if (text.isEmpty || _isThinking) return;
 
+    if (_isDoubaoCatEggRequest(text)) {
+      _stopListeningIfActive();
+      unawaited(_stopAssistantSpeech());
+      _finalizeDoubaoCatEggRound(text);
+      _messageController.clear();
+      return;
+    }
+
     if (_isKoreanDanceRequest(text)) {
       _stopListeningIfActive();
       unawaited(_stopAssistantSpeech());
@@ -2637,6 +2901,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _koreanShakeCtrl?.dispose();
     _koreanDanceCtrl?.removeListener(_bgOnKoreanDanceTick);
     _koreanDanceCtrl?.dispose();
+    _doubaoCatCtrl?.removeListener(_bgOnDoubaoCatTick);
+    _doubaoCatCtrl?.dispose();
     unawaited(_stt.stop());
     unawaited(_stopAssistantSpeech());
     unawaited(_voiceBridgeSub?.cancel());
@@ -2977,23 +3243,33 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                       const ColoredBox(color: _ChatLight.pageBg),
                 ),
               ),
+              Positioned(
+                left: 16,
+                right: 16,
+                top: MediaQuery.paddingOf(context).top + 72,
+                child: _buildDoubaoInfoCard(mood: _doubaoMoodByHour()),
+              ),
               // ── 角色视频：黑底抠 alpha + ShaderMask 滤色与渐变 shader 混合 ───
               if (_kShowChatHeroVideo && _videoReady)
                 Positioned.fill(
                   child: LayoutBuilder(
                     builder: (context, box) {
-                      final VideoPlayerController? ctrl = switch (_videoPhase) {
+                      final VideoPlayerController? phaseCtrl =
+                          switch (_videoPhase) {
                         _ChatVideoPhase.hello => _helloCtrl,
                         _ChatVideoPhase.hait => _haitCtrl,
                         _ChatVideoPhase.breathe => _breatheCtrl,
                         _ChatVideoPhase.down => _downCtrl,
                         _ChatVideoPhase.koreanShake => _koreanShakeCtrl,
                         _ChatVideoPhase.koreanDance => _koreanDanceCtrl,
+                        _ChatVideoPhase.doubaoCat => _doubaoCatCtrl,
                         _ChatVideoPhase.askIntro => _askIntroCtrl,
                         _ChatVideoPhase.askLoopAlt => _askLoopAltCtrl,
                         _ChatVideoPhase.askLoop => _askLoopCtrl,
                         _ChatVideoPhase.askOutro => _askOutroCtrl,
                       };
+                      final VideoPlayerController? ctrl =
+                          _pickRenderableVideoController(phaseCtrl);
                       if (ctrl == null || !ctrl.value.isInitialized) {
                         return const SizedBox.shrink();
                       }
@@ -3368,6 +3644,35 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     );
   }
 
+  VideoPlayerController? _pickRenderableVideoController(
+    VideoPlayerController? phaseCtrl,
+  ) {
+    if (phaseCtrl != null &&
+        phaseCtrl.value.isInitialized &&
+        phaseCtrl.value.size != Size.zero) {
+      return phaseCtrl;
+    }
+    final fallbacks = <VideoPlayerController?>[
+      _askLoopAltCtrl,
+      _askLoopCtrl,
+      _askIntroCtrl,
+      _askOutroCtrl,
+      _breatheCtrl,
+      _haitCtrl,
+      _helloCtrl,
+      _downCtrl,
+      _koreanShakeCtrl,
+      _koreanDanceCtrl,
+      _doubaoCatCtrl,
+    ];
+    for (final c in fallbacks) {
+      if (c != null && c.value.isInitialized && c.value.size != Size.zero) {
+        return c;
+      }
+    }
+    return null;
+  }
+
   void _showHeroAppearancePicker(BuildContext ctx) {
     showModalBottomSheet<void>(
       context: ctx,
@@ -3588,8 +3893,145 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     );
   }
 
-  /// 语音沉浸主页中部区域（欢迎文案已关闭）
+  /// 语音沉浸主页中部区域
   Widget _buildImmersiveView() => const SizedBox.shrink();
+
+  String _doubaoMoodByHour() {
+    final hour = DateTime.now().hour;
+    if (hour < 11) return '清醒充电中';
+    if (hour < 15) return '灵感在线';
+    if (hour < 19) return '状态稳定';
+    return '温柔陪伴中';
+  }
+
+  String _doubaoMoodEmojiByHour() {
+    final hour = DateTime.now().hour;
+    if (hour < 11) return '🙂';
+    if (hour < 15) return '😄';
+    if (hour < 19) return '😊';
+    return '🥰';
+  }
+
+  Widget _buildDoubaoInfoCard({required String mood}) {
+    final now = DateTime.now();
+    final weatherText = now.month >= 5 && now.month <= 9 ? '多云转晴' : '晴间多云';
+    final temperature = now.month >= 5 && now.month <= 9 ? '27°C' : '18°C';
+    final moodEmoji = _doubaoMoodEmojiByHour();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.58),
+              width: 1.0,
+            ),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFFD8E7FF).withValues(alpha: 0.62),
+                const Color(0xFFFCE2E9).withValues(alpha: 0.56),
+                Colors.white.withValues(alpha: 0.32),
+              ],
+              stops: const [0.0, 0.62, 1.0],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 24,
+                spreadRadius: -10,
+                offset: const Offset(0, 14),
+              ),
+              BoxShadow(
+                color: const Color(0xFF8FB7FF).withValues(alpha: 0.20),
+                blurRadius: 18,
+                spreadRadius: -8,
+                offset: const Offset(-2, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 17,
+                    color: Color(0xFF4B4E72),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    '豆包状态',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF4B4E72),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '心情 $moodEmoji',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFE15C9A),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(
+                    child: _VoiceStatusChip(
+                      icon: Icons.mood_rounded,
+                      title: '已聊',
+                      value: '12天',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _VoiceStatusChip(
+                      icon: Icons.wb_sunny_rounded,
+                      title: '天气',
+                      value: weatherText,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _VoiceStatusChip(
+                      icon: Icons.thermostat_rounded,
+                      title: '气温',
+                      value: temperature,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: _VoiceStatusChip(
+                      icon: Icons.air_rounded,
+                      title: '空气',
+                      value: '良好',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   // ── 底部三按钮操作栏 ───────────────────────────────────────────────────────
 
@@ -3786,8 +4228,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                       } else if (!_voiceBarWithMessages) {
                         FocusScope.of(context).unfocus();
                         setState(() => _voiceBarWithMessages = true);
-                        if (!_useVolcSdk && _sttAvailable)
+                        if (!_useVolcSdk && _sttAvailable) {
                           _userRetryListening();
+                        }
                       } else if (!_useVolcSdk && _sttAvailable) {
                         _userRetryListening();
                       }
@@ -5147,6 +5590,65 @@ class _VoiceGlassDock extends StatelessWidget {
             child: child,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VoiceStatusChip extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _VoiceStatusChip({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.36),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.56),
+          width: 0.9,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: const Color(0xFF535776)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: RichText(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$title ',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6D7294),
+                    ),
+                  ),
+                  TextSpan(
+                    text: value,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF353A57),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

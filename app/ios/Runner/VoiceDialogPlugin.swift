@@ -37,6 +37,9 @@ class VoiceDialogPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     private var dialogId: String    = ""
     /// 防止 aiSpeaking 重复下发（先 CHAT_RESPONSE delta 到 → 再 TTS_SENTENCE_START）
     private var aiSpeakingEmitted = false
+    /// TTS 句首延迟播放：先 pause player，再在指定时长后 resume。
+    private static let ttsStartDelayMs = 1000
+    private var pendingTtsResumeWorkItem: DispatchWorkItem?
 
     static func register(with registrar: FlutterPluginRegistrar) {
         let instance = VoiceDialogPlugin()
@@ -230,6 +233,8 @@ class VoiceDialogPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     // MARK: - stopDialog / interrupt
 
     private func stopDialog(result: FlutterResult) {
+        pendingTtsResumeWorkItem?.cancel()
+        pendingTtsResumeWorkItem = nil
         _ = engine?.send(SEDirectiveSyncStopEngine)
         engine?.destroy()
         engine = nil
@@ -240,6 +245,8 @@ class VoiceDialogPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     }
 
     private func interrupt(result: FlutterResult) {
+        pendingTtsResumeWorkItem?.cancel()
+        pendingTtsResumeWorkItem = nil
         _ = engine?.send(SEDirectiveEventClientInterrupt)
         aiSpeakingEmitted = false
         pushEvent(["type": "interrupted"])
@@ -401,8 +408,20 @@ extension VoiceDialogPlugin: SpeechEngineDelegate {
                 aiSpeakingEmitted = true
                 pushEvent(["type": "aiSpeaking"])
             }
-            // 每句 TTS 开始播音时单独通知 Flutter，用于精确同步说话动画起点
-            pushEvent(["type": "ttsSentenceStart"])
+            // 先暂停播放器，延迟 1 秒后恢复，再通知 Flutter 进入说话态。
+            pendingTtsResumeWorkItem?.cancel()
+            pendingTtsResumeWorkItem = nil
+            _ = engine?.send(SEDirectivePausePlayer)
+            let work = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                _ = self.engine?.send(SEDirectiveResumePlayer)
+                self.pushEvent(["type": "ttsSentenceStart"])
+            }
+            pendingTtsResumeWorkItem = work
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + .milliseconds(VoiceDialogPlugin.ttsStartDelayMs),
+                execute: work
+            )
 
         case SEEventTTSSentenceEnd:
             // 每句 TTS 播完时通知 Flutter，可用于结束动画同步

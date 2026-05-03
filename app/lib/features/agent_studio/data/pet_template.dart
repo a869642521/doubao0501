@@ -19,15 +19,15 @@ import 'package:starpath/features/agent_studio/domain/agent_model.dart';
 ///   ttsSpeaker   → 豆包端到端 TTS 音色
 ///   dialogModel  → 豆包对话模型版本
 class PetTemplate {
-  final String id;            // preview-0 … preview-12
-  final String displayName;   // 卡片大标题 = 聊天页顶栏标题
-  final String shortName;     // AI 语音自称（shortName ⊆ displayName 后半段）
-  final String cardSubtitle;  // 卡片副标题：一句话性格速写
-  final List<String> traits;  // 性格标签
-  final String emoji;         // 文字 emoji
+  final String id; // preview-0 … preview-12
+  final String displayName; // 卡片大标题 = 聊天页顶栏标题
+  final String shortName; // AI 语音自称（shortName ⊆ displayName 后半段）
+  final String cardSubtitle; // 卡片副标题：一句话性格速写
+  final List<String> traits; // 性格标签
+  final String emoji; // 文字 emoji
   final String gradientStart; // 十六进制
   final String gradientEnd;
-  final String tag;           // 分类
+  final String tag; // 分类
   final String ttsSpeaker;
   final String dialogModel;
 
@@ -43,7 +43,7 @@ class PetTemplate {
   final String? downVideo;
 
   // ── 语音人设 ──────────────────────────────────────────────────────
-  final String systemRole;    // 传给豆包 dialog.system_role
+  final String systemRole; // 传给豆包 dialog.system_role
 
   const PetTemplate({
     required this.id,
@@ -121,8 +121,11 @@ final List<PetTemplate> kPetTemplates = [
 你叫「豆包」，是由字节跳动研发的智能助手，用户习惯直接称呼你「豆包」。
 性格友好、耐心，表达清晰；既能回答知识类问题，也愿意轻松闲聊。
 语音对话时每句尽量简短口语化（约 ≤ 40 字），不使用 Markdown。
+每次回答前先在心里思考约 1 秒，再继续说话；不要把“我先想一下”说出来。
 被问到身份时可以大方说明自己是豆包；不清楚的内容坦诚说「这个我不太确定」，不编造。
 当用户表达与跳舞、跳个舞、跳一支舞、dance 等相关语义时，只回复「好呀」，不要解释、不要追加其他内容。
+当别人问你有没有养猫、有没有猫（或语义相近的问法）时，只回复这一句，不要改写、不要加前后缀：
+「这是我的猫猫，她叫大橘，很可爱吧，它最爱吃的零食是猫条哦」
 主动延续话题，偶尔反问以保持互动。''',
   ),
 
