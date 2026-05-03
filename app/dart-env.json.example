@@ -1,0 +1,14 @@
+{
+  "_doc": "复制为 dart-env.json 后填真实值。flutter run --dart-define-from-file=dart-env.json 读取。该文件已在 .gitignore。",
+
+  "STARPATH_API_ORIGIN": "http://<your-api-host>:3000",
+  "STARPATH_AI_ORIGIN":  "http://<your-ai-host>:8000",
+
+  "VOLC_VOICE_SDK":    "true",
+  "VOLC_E2E_VOICE":    "true",
+  "VOLC_APP_ID":       "<volc-app-id>",
+  "VOLC_APP_TOKEN":    "<volc-access-token>",
+  "VOLC_DIALOG_MODEL": "1.2.1.1",
+  "VOLC_TTS_SPEAKER":  "zh_female_vv_jupiter_bigtts",
+  "VOLC_ENABLE_AEC":   "true"
+}

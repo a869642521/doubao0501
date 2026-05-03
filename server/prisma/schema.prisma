@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  phone         String?   @unique
+  nickname      String    @default("新用户")
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  agents        Agent[]
+  conversations Conversation[]
+  contentCards  ContentCard[]
+  currencyAccount CurrencyAccount?
+  likes         Like[]
+  comments      Comment[]
+
+  @@map("users")
+}
+
+model Agent {
+  id              String    @id @default(uuid())
+  userId          String
+  name            String
+  emoji           String    @default("🤖")
+  avatarUrl       String?
+  personality     String[]  @default([])
+  bio             String    @default("")
+  systemPrompt    String    @default("")
+  templateId      String?
+  gradientStart   String    @default("#6C63FF")
+  gradientEnd     String    @default("#00D2FF")
+  isPublic        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  user            User      @relation(fields: [userId], references: [id])
+  conversations   Conversation[]
+  memories        Memory[]
+  contentCards    ContentCard[]
+
+  @@map("agents")
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  agentId   String
+  title     String    @default("")
+  lastMessageAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id])
+  agent     Agent     @relation(fields: [agentId], references: [id])
+  messages  Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  /// 面向 TTS / 语音区字幕的纯文本（可由网关从 Markdown 派生）
+  voicePlain     String?
+  createdAt      DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+model Memory {
+  id        String      @id @default(uuid())
+  agentId   String
+  userId    String
+  level     MemoryLevel
+  content   String
+  embedding Unsupported("vector(1536)")?
+  metadata  Json        @default("{}")
+  createdAt DateTime    @default(now())
+  expiresAt DateTime?
+
+  agent     Agent       @relation(fields: [agentId], references: [id])
+
+  @@index([agentId, level])
+  @@map("memories")
+}
+
+enum MemoryLevel {
+  L1_INSTANT
+  L2_SHORT_TERM
+  L3_LONG_TERM
+}
+
+model ContentCard {
+  id          String      @id @default(uuid())
+  userId      String
+  agentId     String?
+  type        CardType
+  title       String      @default("")
+  content     String
+  imageUrls   String[]    @default([])
+  likeCount   Int         @default(0)
+  commentCount Int        @default(0)
+  isPublished Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  user        User        @relation(fields: [userId], references: [id])
+  agent       Agent?      @relation(fields: [agentId], references: [id])
+  likes       Like[]
+  comments    Comment[]
+
+  @@index([isPublished, createdAt(sort: Desc)])
+  @@map("content_cards")
+}
+
+enum CardType {
+  TEXT_IMAGE
+  DIALOGUE
+  AGENT_PROFILE
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  cardId    String
+  createdAt DateTime @default(now())
+
+  user      User        @relation(fields: [userId], references: [id])
+  card      ContentCard @relation(fields: [cardId], references: [id])
+
+  @@unique([userId, cardId])
+  @@map("likes")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  userId    String
+  cardId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  user      User        @relation(fields: [userId], references: [id])
+  card      ContentCard @relation(fields: [cardId], references: [id])
+
+  @@index([cardId, createdAt])
+  @@map("comments")
+}
+
+model CurrencyAccount {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  totalEarned Int    @default(0)
+  totalSpent  Int    @default(0)
+  lastCheckIn DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id])
+  transactions CurrencyTransaction[]
+
+  @@map("currency_accounts")
+}
+
+model CurrencyTransaction {
+  id        String          @id @default(uuid())
+  accountId String
+  amount    Int
+  type      TransactionType
+  reason    String
+  metadata  Json            @default("{}")
+  createdAt DateTime        @default(now())
+
+  account   CurrencyAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, createdAt(sort: Desc)])
+  @@map("currency_transactions")
+}
+
+enum TransactionType {
+  EARN
+  SPEND
+}

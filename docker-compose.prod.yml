@@ -1,0 +1,70 @@
+services:
+
+  # ── 数据库 ────────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: starpath-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-starpath}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-starpath}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-pgvector.sql:/docker-entrypoint-initdb.d/01-pgvector.sql:ro
+    # 不对外暴露端口（仅容器内通信）
+    expose:
+      - "5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: starpath-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+
+  # ── Nest 主 API ───────────────────────────────────────────────
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: starpath-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-starpath}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-starpath}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3000
+      AI_SERVICE_URL: http://ai:8000
+    depends_on:
+      - postgres
+      - redis
+
+  # ── Python AI 服务 ────────────────────────────────────────────
+  ai:
+    build:
+      context: ./server/services/ai-service
+      dockerfile: Dockerfile
+    container_name: starpath-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-kimi}
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-doubao-pro-32k}
+      KIMI_CODE_API_KEY: ${KIMI_CODE_API_KEY:-}
+      KIMI_CODE_BASE_URL: ${KIMI_CODE_BASE_URL:-https://api.kimi.com/coding/v1}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-starpath}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-starpath}?schema=public
+      PORT: 8000
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  redis_data:

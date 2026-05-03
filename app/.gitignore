@@ -1,0 +1,9 @@
+
+# FVM Version Cache
+.fvm/.env.volc
+
+# 内网穿透本地配置（含公网域名）
+.env.tunnel
+
+# 模拟器开发时跳过火山语音 Pod；真机打包前请删除并重新 pod install
+ios/.skip_volc_for_sim
