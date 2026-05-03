@@ -69,7 +69,7 @@ cd superAI            # 或你实际的目录名
 VOLC_VOICE_SDK=true
 VOLC_E2E_VOICE=true
 VOLC_APP_ID=9170285703
-VOLC_APP_TOKEN=AeTTIxIuDfcnXaKP-L67iZt8NURz8iPa
+VOLC_APP_TOKEN=<your-volc-access-token>
 
 # StartSession 必传 model：O2.0 → 1.2.1.1；SC2.0 → 2.2.0.0
 VOLC_DIALOG_MODEL=1.2.1.1
