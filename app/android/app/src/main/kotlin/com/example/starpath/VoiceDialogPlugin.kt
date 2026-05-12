@@ -57,9 +57,6 @@ class VoiceDialogPlugin(
         private const val FIXED_APP_KEY = "PlgvMymc7f3tQnJ6"
 
         private const val REQUEST_RECORD_AUDIO = 7001
-        private const val TTS_START_DELAY_MS = 1000L
-        private const val DIRECTIVE_PAUSE_PLAYER = 1500
-        private const val DIRECTIVE_RESUME_PLAYER = 1501
     }
 
     private var pendingStartArgs:   MethodCall?            = null
@@ -72,7 +69,6 @@ class VoiceDialogPlugin(
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var aiSpeakingEmitted = false
-    private var pendingTtsResumeRunnable: Runnable? = null
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -228,8 +224,6 @@ class VoiceDialogPlugin(
 
     private fun handleStopDialog(result: MethodChannel.Result) {
         try {
-            pendingTtsResumeRunnable?.let { mainHandler.removeCallbacks(it) }
-            pendingTtsResumeRunnable = null
             engine?.sendDirective(SpeechEngineDefines.DIRECTIVE_SYNC_STOP_ENGINE, "")
             engine?.destroyEngine()
             engine = null
@@ -242,8 +236,6 @@ class VoiceDialogPlugin(
 
     private fun handleInterrupt(result: MethodChannel.Result) {
         try {
-            pendingTtsResumeRunnable?.let { mainHandler.removeCallbacks(it) }
-            pendingTtsResumeRunnable = null
             engine?.sendDirective(SpeechEngineDefines.DIRECTIVE_EVENT_CLIENT_INTERRUPT, "")
             result.success(null)
         } catch (e: Exception) {
@@ -319,16 +311,7 @@ class VoiceDialogPlugin(
                     aiSpeakingEmitted = true
                     pushEvent(mapOf("type" to "aiSpeaking"))
                 }
-                // 先暂停播放器，延迟 1 秒后恢复，再通知 Flutter 进入说话态。
-                pendingTtsResumeRunnable?.let { mainHandler.removeCallbacks(it) }
-                pendingTtsResumeRunnable = null
-                try { engine?.sendDirective(DIRECTIVE_PAUSE_PLAYER, "") } catch (_: Exception) {}
-                val resume = Runnable {
-                    try { engine?.sendDirective(DIRECTIVE_RESUME_PLAYER, "") } catch (_: Exception) {}
-                    pushEvent(mapOf("type" to "ttsSentenceStart"))
-                }
-                pendingTtsResumeRunnable = resume
-                mainHandler.postDelayed(resume, TTS_START_DELAY_MS)
+                pushEvent(mapOf("type" to "ttsSentenceStart"))
             }
             SpeechEngineDefines.MESSAGE_TYPE_DIALOG_TTS_SENTENCE_END -> { /* 单句播完，无需处理 */ }
             SpeechEngineDefines.MESSAGE_TYPE_DIALOG_TTS_ENDED -> {

@@ -43,18 +43,22 @@ class AppConstants {
   }
 
   /// 伙伴聊天页角色背景视频。
-  /// doubao01.mov 编码为 **HEVC with Alpha（苹果专有）**，Android 不支持。
-  /// 因此 Android 优先走 `doubao01.mp4`（H.264），iOS 才优先走 `.mov`。
+  /// doubao01.mov 编码为 HEVC，Android 侧优先走 `doubao01.webm`（VP9）。
+  /// 若机型不支持再回退到 `mp4/mov`。
   static String get partnerHeroVideoAsset {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'video/doubao01.mp4';
+      return 'video/doubao01.webm';
     }
     return 'video/doubao01.mov';
   }
 
   static List<String> get partnerHeroVideoCandidates {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return const <String>['video/doubao01.mp4', 'video/doubao01.mov'];
+      return const <String>[
+        'video/doubao01.webm',
+        'video/doubao01.mp4',
+        'video/doubao01.mov',
+      ];
     }
     return const <String>['video/doubao01.mov', 'video/doubao01.mp4'];
   }

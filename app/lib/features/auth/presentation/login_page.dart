@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,37 +17,29 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  final _phoneController = TextEditingController();
-  bool _isLoading = false;
-  String? _error;
+  final _pageController = PageController();
+  Timer? _enterRevealTimer;
+  int _currentPage = 0;
+  bool _showEnterButton = false;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _enterRevealTimer?.cancel();
+    _pageController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
-    final phone = _phoneController.text.trim();
-    // 输入 "1" 直接跳过登录（演示快捷入口）
-    if (phone == '1') {
-      _skipToHome();
-      return;
-    }
-    if (phone.length != 11) {
-      setState(() => _error = '请输入11位手机号');
-      return;
-    }
+  void _handlePageChanged(int page) {
+    _enterRevealTimer?.cancel();
     setState(() {
-      _isLoading = true;
-      _error = null;
+      _currentPage = page;
+      _showEnterButton = false;
     });
-    try {
-      await ref.read(authProvider.notifier).login(phone);
-    } catch (e) {
-      setState(() => _error = '登录失败，请检查网络连接');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (page == 2) {
+      _enterRevealTimer = Timer(const Duration(seconds: 1), () {
+        if (!mounted || _currentPage != 2) return;
+        setState(() => _showEnterButton = true);
+      });
     }
   }
 
@@ -62,7 +56,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         fit: StackFit.expand,
         children: [
           // ── Nebula background radial glows ────────────────────────────────
-          Positioned(
+          const Positioned(
             top: -100,
             left: -60,
             child: _NebulaOrb(
@@ -71,7 +65,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               opacity: 0.18,
             ),
           ),
-          Positioned(
+          const Positioned(
             bottom: 60,
             right: -80,
             child: _NebulaOrb(
@@ -80,7 +74,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               opacity: 0.14,
             ),
           ),
-          Positioned(
+          const Positioned(
             top: 260,
             right: 20,
             child: _NebulaOrb(
@@ -90,153 +84,185 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ),
 
-          // ── 跳过 ───────────────────────────────────────────────────────────
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 12, top: 4),
-                child: TextButton(
-                  onPressed: _skipToHome,
-                  style: TextButton.styleFrom(
-                    foregroundColor: StarpathColors.onSurfaceVariant,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                  ),
-                  child: const Text(
-                    '跳过',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
           // ── Content ───────────────────────────────────────────────────────
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 72),
-
-                  // Avatar
-                  AuraAvatar(
-                    fallbackEmoji: '✨',
-                    size: 88,
-                    gradientColors: const [
-                      StarpathColors.primary,
-                      StarpathColors.secondary,
+            child: Column(
+              children: [
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: _handlePageChanged,
+                    children: const [
+                      _StoryPage(
+                        emoji: '✨',
+                        title: '遇见你的 AI 伙伴',
+                        subtitle: '它会记住你的灵感、情绪和每一次想被认真回应的时刻。',
+                        state: CompanionState.excited,
+                        colors: [
+                          StarpathColors.primary,
+                          StarpathColors.secondary,
+                        ],
+                      ),
+                      _StoryPage(
+                        emoji: '💬',
+                        title: '它会听你说话',
+                        subtitle: '开心、卡住、想吐槽，或者只是想有人陪着聊几句。',
+                        state: CompanionState.active,
+                        colors: [
+                          StarpathColors.secondary,
+                          StarpathColors.tertiary,
+                        ],
+                      ),
+                      _StoryPage(
+                        emoji: '🌙',
+                        title: '一起进入 Starpath',
+                        subtitle: '从这一刻开始，把日常、创作和陪伴都交给你的专属伙伴。',
+                        state: CompanionState.excited,
+                        colors: [
+                          StarpathColors.tertiary,
+                          StarpathColors.primary,
+                        ],
+                      ),
                     ],
-                    state: CompanionState.excited,
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // App name
-                  Text(
-                    'Starpath',
-                    style: Theme.of(context)
-                        .textTheme
-                        .displayMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Text(
-                    '遇见你的AI伙伴',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-
-                  const SizedBox(height: 52),
-
-                  // ── Glass form card ───────────────────────────────────────
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(36),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                      child: Container(
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          color: StarpathColors.surfaceContainer
-                              .withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(36),
-                          border: Border.all(
-                            color: StarpathColors.outlineVariant,
-                            width: 1,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 34),
+                  child: Column(
+                    children: [
+                      _PageDots(currentPage: _currentPage, pageCount: 3),
+                      const SizedBox(height: 24),
+                      AnimatedSlide(
+                        duration: const Duration(milliseconds: 420),
+                        curve: Curves.easeOutCubic,
+                        offset: _showEnterButton
+                            ? Offset.zero
+                            : const Offset(0, 0.18),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 420),
+                          curve: Curves.easeOut,
+                          opacity: _showEnterButton ? 1 : 0,
+                          child: IgnorePointer(
+                            ignoring: !_showEnterButton,
+                            child: GradientButton(
+                              text: '点击进入',
+                              onPressed: _skipToHome,
+                            ),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              '手机号登录',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '首次登录自动注册账号',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            const SizedBox(height: 22),
-
-                            // Phone input
-                            TextField(
-                              controller: _phoneController,
-                              keyboardType: TextInputType.phone,
-                              maxLength: 11,
-                              style: const TextStyle(
-                                color: StarpathColors.onSurface,
-                                fontSize: 16,
-                                letterSpacing: 1.5,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: '请输入手机号',
-                                prefixIcon: const Padding(
-                                  padding: EdgeInsets.only(left: 4),
-                                  child: Icon(Icons.phone_outlined, size: 20),
-                                ),
-                                counterText: '',
-                                errorText: _error,
-                              ),
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            GradientButton(
-                              text: '登录 / 注册',
-                              onPressed: _isLoading ? null : _login,
-                              isLoading: _isLoading,
-                            ),
-                          ],
-                        ),
                       ),
-                    ),
+                    ],
                   ),
-
-                  const SizedBox(height: 28),
-
-                  Text(
-                    '登录即表示同意《用户协议》和《隐私政策》',
-                    style: Theme.of(context).textTheme.labelSmall,
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 40),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StoryPage extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final CompanionState state;
+  final List<Color> colors;
+
+  const _StoryPage({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.state,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 30),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(40),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                width: 168,
+                height: 168,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      StarpathColors.surfaceContainer.withValues(alpha: 0.42),
+                  borderRadius: BorderRadius.circular(40),
+                  border: Border.all(
+                    color: StarpathColors.outlineVariant,
+                    width: 1,
+                  ),
+                ),
+                child: AuraAvatar(
+                  fallbackEmoji: emoji,
+                  size: 104,
+                  gradientColors: colors,
+                  state: state,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 42),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  height: 1.16,
+                ),
+          ),
+          const SizedBox(height: 16),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 310),
+            child: Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    height: 1.65,
+                    color: StarpathColors.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PageDots extends StatelessWidget {
+  final int currentPage;
+  final int pageCount;
+
+  const _PageDots({required this.currentPage, required this.pageCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(pageCount, (index) {
+        final active = currentPage == index;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          width: active ? 26 : 8,
+          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(100),
+            gradient: active ? StarpathColors.primaryGradient : null,
+            color: active ? null : StarpathColors.surfaceContainerHigh,
+          ),
+        );
+      }),
     );
   }
 }

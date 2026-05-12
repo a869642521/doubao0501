@@ -400,6 +400,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   _ChatVideoPhase _videoPhase = _ChatVideoPhase.hello;
   bool _askVideoActive = false;
   bool _askLoopRestarting = false;
+  bool _askLoopHandoffInFlight = false;
   double _askLoopPlaybackSpeed = 1.0;
   DateTime? _lastAskPlaybackSpeedTuneAt;
 
@@ -411,6 +412,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _askLoopCtrl!.value.isInitialized;
   Timer? _askVideoEndDebounceTimer;
   int _askVideoGeneration = 0;
+  Timer? _askVideoHeartbeatTimer;
+
+  /// 最后一次渲染时视频的真实 size（非零时缓存）。
+  /// 当 seekTo 期间 ctrl.value.size 短暂归零时，用此值代替硬编码 720×1280 兜底，
+  /// 避免 scale 跳变导致的视频拉伸闪烁。
+  Size? _lastVideoRenderSize;
 
   /// TTS / 火山实时语音播放时暂停背景 MP4，避免与麦克风/扬声器争用解码器与音频焦点（模拟器上尤其明显）
   bool _bgPausedForExternalAudio = false;
@@ -586,6 +593,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _selectedHeroVideoAsset == null &&
       _selectedDoubaoHeroClipDirectory == null;
 
+  /// 仅韩系使用简化主循环逻辑；默认豆包走 ask 分镜链路。
+  bool get _useKoreanStylePlayback => _isKoreanHeroSelected;
+
   /// 语音页点键盘进入的全屏文字聊天：与 [widget.initialMode] 独立，不新开 Route，
   /// 避免第二个 Socket / 第二份 [_messages] 与语音页「接不上」。
   bool _inlineTextMode = false;
@@ -680,8 +690,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     }
     if (Platform.isAndroid) {
       return [
-        '$basePathWithoutExt.mp4',
         '$basePathWithoutExt.webm',
+        '$basePathWithoutExt.mp4',
         '$basePathWithoutExt.mov',
       ];
     }
@@ -1393,12 +1403,18 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (!mounted) return;
     final c = _helloCtrl;
     if (c != null) {
+      c.removeListener(_bgOnHelloTick);
+      if (mounted) setState(() => _videoPhase = _ChatVideoPhase.hello);
       await c.seekTo(Duration.zero);
       c.addListener(_bgOnHelloTick);
       await c.play();
-      if (mounted) setState(() => _videoPhase = _ChatVideoPhase.hello);
+      const frameWait = Duration(milliseconds: 14);
+      for (var i = 0; i < 20 && mounted; i++) {
+        if (c.value.isPlaying) break;
+        await Future<void>.delayed(frameWait);
+      }
     } else {
-      _bgBeginHait();
+      await _bgBeginHait();
     }
   }
 
@@ -1421,12 +1437,20 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     final c = _haitCtrl;
     if (c != null) {
       c.removeListener(_bgOnHaitTick);
+      // 先绑定 hait phase，再在 haitCtrl 里 seek/play；若在 await 之后才 setState，
+      // 一段时间内 _videoPhase 仍是 askOutro，会一直画已 pause 的 outro→像卡住/白屏，
+      // 且 _pick 会误判去叠 ask 的 fallback 造成拉伸。
+      if (mounted) setState(() => _videoPhase = _ChatVideoPhase.hait);
       await c.seekTo(Duration.zero);
       c.addListener(_bgOnHaitTick);
       await c.play();
-      if (mounted) setState(() => _videoPhase = _ChatVideoPhase.hait);
+      const frameWait = Duration(milliseconds: 14);
+      for (var i = 0; i < 25 && mounted; i++) {
+        if (c.value.isPlaying) break;
+        await Future<void>.delayed(frameWait);
+      }
     } else {
-      _bgBeginBreathe();
+      await _bgBeginBreathe();
     }
   }
 
@@ -1446,13 +1470,18 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (!mounted) return;
     final c = _breatheCtrl;
     if (c == null) return;
-    await c.seekTo(Duration.zero);
     c.removeListener(_bgOnBreatheTick);
+    if (mounted) setState(() => _videoPhase = _ChatVideoPhase.breathe);
+    await c.seekTo(Duration.zero);
     if (_selectedHeroVideoAsset == null) {
       c.addListener(_bgOnBreatheTick);
     }
     await c.play();
-    if (mounted) setState(() => _videoPhase = _ChatVideoPhase.breathe);
+    const frameWait = Duration(milliseconds: 14);
+    for (var i = 0; i < 20 && mounted; i++) {
+      if (c.value.isPlaying) break;
+      await Future<void>.delayed(frameWait);
+    }
   }
 
   void _bgOnBreatheTick() {
@@ -1481,20 +1510,27 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (!_videoReady) return;
     final down = _downCtrl;
     if (down == null || !down.value.isInitialized) {
-      // 没有 down 素材 → 重播 hello
       _bgPauseCurrent();
-      _bgBeginHello();
+      unawaited(_bgBeginHello());
       return;
     }
     if (_videoPhase == _ChatVideoPhase.down) return;
     if (_videoPhase == _ChatVideoPhase.koreanShake) return;
     if (_videoPhase == _ChatVideoPhase.koreanDance) return;
     if (_videoPhase == _ChatVideoPhase.doubaoCat) return;
-    _bgPauseCurrent();
+    // 先在后台 seek + play，等首帧再暂停旧视频，避免切换瞬间白屏
+    down.removeListener(_bgOnDownTick);
     await down.seekTo(Duration.zero);
     down.addListener(_bgOnDownTick);
     await down.play();
-    if (mounted) setState(() => _videoPhase = _ChatVideoPhase.down);
+    const frameWait = Duration(milliseconds: 14);
+    for (var i = 0; i < 30 && mounted; i++) {
+      if (down.value.isPlaying) break;
+      await Future<void>.delayed(frameWait);
+    }
+    if (!mounted) return;
+    _bgPauseCurrent();
+    setState(() => _videoPhase = _ChatVideoPhase.down);
   }
 
   void _bgOnDownTick() {
@@ -1515,6 +1551,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _askVideoEndDebounceTimer = null;
     _askVideoActive = false;
     _askLoopRestarting = false;
+    _askLoopHandoffInFlight = false;
     _askLoopPlaybackSpeed = 1.0;
     _lastAskPlaybackSpeedTuneAt = null;
     _askVideoGeneration++;
@@ -1524,36 +1561,138 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _askLoopCtrl?.removeListener(_bgOnAskLoopTick);
     unawaited(_askLoopCtrl?.setPlaybackSpeed(1.0));
     _askOutroCtrl?.removeListener(_bgOnAskOutroTick);
+    _stopAskVideoHeartbeat();
   }
 
-  Future<void> _bgBeginAskSpeakingLoop() async {
-    if (!mounted || _selectedHeroVideoAsset != null) return;
-    if (_isKoreanHeroSelected) {
-      _clearAskVideoState();
-      return;
-    }
-    if (_videoPhase == _ChatVideoPhase.doubaoCat || _doubaoCatClipPlaying) {
+  VideoPlayerController? _currentVideoControllerForPhase() =>
+      switch (_videoPhase) {
+        _ChatVideoPhase.hello => _helloCtrl,
+        _ChatVideoPhase.hait => _haitCtrl,
+        _ChatVideoPhase.breathe => _breatheCtrl,
+        _ChatVideoPhase.down => _downCtrl,
+        _ChatVideoPhase.koreanShake => _koreanShakeCtrl,
+        _ChatVideoPhase.koreanDance => _koreanDanceCtrl,
+        _ChatVideoPhase.doubaoCat => _doubaoCatCtrl,
+        _ChatVideoPhase.askIntro => _askIntroCtrl,
+        _ChatVideoPhase.askLoopAlt => _askLoopAltCtrl,
+        _ChatVideoPhase.askLoop => _askLoopCtrl,
+        _ChatVideoPhase.askOutro => _askOutroCtrl,
+      };
+
+  void _startAskVideoHeartbeat() {
+    _askVideoHeartbeatTimer?.cancel();
+    _askVideoHeartbeatTimer =
+        Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (_disposed || !mounted || !_askVideoActive) {
+        _stopAskVideoHeartbeat();
+        return;
+      }
+      final c = _currentVideoControllerForPhase();
+      final v = c?.value;
+      final pos = v?.position.inMilliseconds;
+      final dur = v?.duration.inMilliseconds;
+      final size = v?.size;
+      debugPrint(
+        '[BgVideo] heartbeat phase=$_videoPhase active=$_askVideoActive '
+        'gen=$_askVideoGeneration handoff=$_askLoopHandoffInFlight '
+        'ctrl=${c == null ? 'null' : 'ok'} init=${v?.isInitialized} '
+        'playing=${v?.isPlaying} buffering=${v?.isBuffering} '
+        'pos=$pos dur=$dur size=$size',
+      );
+    });
+  }
+
+  void _stopAskVideoHeartbeat() {
+    _askVideoHeartbeatTimer?.cancel();
+    _askVideoHeartbeatTimer = null;
+  }
+
+  Future<void> _resetAskVideoForNewRound() async {
+    if (_askVideoActive) {
+      debugPrint('[BgVideo] skip ask reset while active');
       return;
     }
     _askVideoEndDebounceTimer?.cancel();
-    // 设置 _askVideoActive 是同步的，必须在所有 await 之前完成；
-    // 后续每次 aiTextDelta/aiSpeaking 进来都会因为 _askVideoActive==true 直接退出，
-    // 避免并发调用反复 seekTo(0) 导致视频只播一次。
-    if (_askVideoActive) return;
-    _askVideoActive = true;
-    final gen = ++_askVideoGeneration;
-    _bgPauseCurrent();
-    final intro = _askIntroCtrl;
-    if (intro == null || !intro.value.isInitialized) {
-      await _bgBeginAskLoopAlt(gen);
-      return;
+    _askVideoEndDebounceTimer = null;
+    _askLoopRestarting = false;
+    _askLoopHandoffInFlight = false;
+    _askLoopPlaybackSpeed = 1.0;
+    _lastAskPlaybackSpeedTuneAt = null;
+
+    _askIntroCtrl?.removeListener(_bgOnAskIntroTick);
+    _askLoopAltCtrl?.removeListener(_bgOnAskLoopAltTick);
+    _askLoopCtrl?.removeListener(_bgOnAskLoopTick);
+    _askOutroCtrl?.removeListener(_bgOnAskOutroTick);
+
+    final ctrls = <VideoPlayerController?>[
+      _askIntroCtrl,
+      _askLoopAltCtrl,
+      _askLoopCtrl,
+      _askOutroCtrl,
+    ];
+    for (final c in ctrls) {
+      if (c == null || !c.value.isInitialized) continue;
+      try {
+        await c.pause();
+        await c.setPlaybackSpeed(1.0);
+        await c.seekTo(Duration.zero);
+      } catch (e) {
+        debugPrint('[BgVideo] reset ask controller failed: $e');
+      }
     }
-    intro.removeListener(_bgOnAskIntroTick);
-    await intro.pause();
-    await intro.seekTo(Duration.zero);
-    intro.addListener(_bgOnAskIntroTick);
-    await intro.play();
-    if (mounted) setState(() => _videoPhase = _ChatVideoPhase.askIntro);
+  }
+
+  Future<void> _bgBeginAskSpeakingLoop() async {
+    try {
+      if (!mounted || _selectedHeroVideoAsset != null) return;
+      if (_useKoreanStylePlayback) {
+        _clearAskVideoState();
+        return;
+      }
+      if (_videoPhase == _ChatVideoPhase.doubaoCat || _doubaoCatClipPlaying) {
+        return;
+      }
+      _askVideoEndDebounceTimer?.cancel();
+      // 同一句话仍在 ask 循环中时，只取消 ask03 收尾，不重置正在播放的片段。
+      if (_askVideoActive) return;
+      await _resetAskVideoForNewRound();
+      if (!mounted || _selectedHeroVideoAsset != null) return;
+      // 设置 _askVideoActive 是同步的，必须在启动视频前完成；
+      // 后续每次 aiTextDelta/aiSpeaking 进来都会因为 _askVideoActive==true 直接退出，
+      // 避免并发调用反复 seekTo(0) 导致视频只播一次。
+      _askVideoActive = true;
+      final gen = ++_askVideoGeneration;
+      _startAskVideoHeartbeat();
+
+      final intro = _askIntroCtrl;
+      if (intro == null || !intro.value.isInitialized) {
+        _bgPauseCurrent();
+        await _bgBeginAskLoopAlt(gen);
+        return;
+      }
+
+      // 先让 intro 在后台 seek + play，等到出首帧再暂停当前视频并切相态。
+      // 这样 breathe/hait 帧可以一直撑着画面，不会出现"先黑一帧再亮"的闪烁。
+      intro.removeListener(_bgOnAskIntroTick);
+      await intro.pause();
+      await intro.seekTo(Duration.zero);
+      intro.addListener(_bgOnAskIntroTick);
+      await intro.play();
+
+      final ready = await _waitVideoRenderable(intro, gen);
+      if (!ready) {
+        _abortAskVideoVisualOnly('ask01 first frame timeout');
+        return;
+      }
+      if (!mounted || gen != _askVideoGeneration) return;
+
+      // intro 已有画面，现在才暂停旧视频、切相态，避免黑帧/视频消失
+      _bgPauseCurrent();
+      setState(() => _videoPhase = _ChatVideoPhase.askIntro);
+    } catch (e, st) {
+      debugPrint('[BgVideo] ask start failed: $e\n$st');
+      _abortAskVideoVisualOnly('ask start exception');
+    }
   }
 
   void _bgOnAskIntroTick() {
@@ -1577,18 +1716,62 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     }
   }
 
-  /// intro 到 ask02_1：不要在片尾立刻 seekTo(0)，否则会有一帧回到片头/黑底再换层，观感卡顿闪一下。
+  /// intro 到 ask02_1：让 intro 的最后一帧留在屏上，等 ask02_1 首帧可渲染后再切 phase。
   Future<void> _finishAskIntroThenBeginAlt(int generation) async {
-    final intro = _askIntroCtrl;
-    if (intro != null && intro.value.isInitialized) {
-      await intro.pause();
-    }
     await _bgBeginAskLoopAlt(generation);
+  }
+
+  Future<bool> _waitVideoRenderable(
+    VideoPlayerController c,
+    int? generation,
+  ) async {
+    const frameWait = Duration(milliseconds: 14);
+    for (var i = 0;
+        i < 42 &&
+            mounted &&
+            (generation == null || generation == _askVideoGeneration);
+        i++) {
+      if (c.value.isInitialized &&
+          c.value.size != Size.zero &&
+          c.value.isPlaying) {
+        return true;
+      }
+      await Future<void>.delayed(frameWait);
+    }
+    return mounted &&
+        (generation == null || generation == _askVideoGeneration) &&
+        c.value.isInitialized &&
+        c.value.isPlaying;
+  }
+
+  Future<void> _pauseAndRewindAskController(VideoPlayerController? c) async {
+    if (c == null || !c.value.isInitialized) return;
+    await c.pause();
+    await c.seekTo(Duration.zero);
+  }
+
+  void _abortAskVideoVisualOnly(String reason) {
+    debugPrint('[BgVideo] ask visual fallback: $reason');
+    _askVideoEndDebounceTimer?.cancel();
+    _askVideoEndDebounceTimer = null;
+    _askVideoActive = false;
+    _askLoopRestarting = false;
+    _askLoopHandoffInFlight = false;
+    _askVideoGeneration++;
+    _askIntroCtrl?.removeListener(_bgOnAskIntroTick);
+    _askLoopAltCtrl?.removeListener(_bgOnAskLoopAltTick);
+    _askLoopCtrl?.removeListener(_bgOnAskLoopTick);
+    _askOutroCtrl?.removeListener(_bgOnAskOutroTick);
+    unawaited(_askLoopAltCtrl?.setPlaybackSpeed(1.0));
+    unawaited(_askLoopCtrl?.setPlaybackSpeed(1.0));
+    unawaited(_bgBeginHait());
+    _stopAskVideoHeartbeat();
   }
 
   Future<void> _bgBeginAskLoopAlt([int? generation]) async {
     if (!mounted || _selectedHeroVideoAsset != null) return;
     if (generation != null && generation != _askVideoGeneration) return;
+    if (_askLoopHandoffInFlight) return;
     final main = _askLoopCtrl;
     final alt = _askLoopAltCtrl;
     if (alt == null || !alt.value.isInitialized) {
@@ -1601,33 +1784,34 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       return;
     }
 
-    main.removeListener(_bgOnAskLoopTick);
-    unawaited(main.pause());
-    unawaited(main.seekTo(Duration.zero));
-    unawaited(main.setPlaybackSpeed(1.0));
-
-    alt.removeListener(_bgOnAskLoopAltTick);
-    alt.addListener(_bgOnAskLoopAltTick);
-    await alt.setLooping(false);
-    await alt.setPlaybackSpeed(1.0);
-    _askLoopPlaybackSpeed = 1.0;
-    await alt.seekTo(Duration.zero);
-    await alt.play();
-    // 切换 Widget 绑定的 controller 时，常有一帧 size 仍为 0 → build 里 shrink 露底；稍等首帧再改 phase。
-    const frameWait = Duration(milliseconds: 14);
-    for (var i = 0;
-        i < 36 &&
-            mounted &&
-            (generation == null || generation == _askVideoGeneration);
-        i++) {
-      if (alt.value.size != Size.zero && alt.value.isPlaying) break;
-      await Future<void>.delayed(frameWait);
+    _askLoopHandoffInFlight = true;
+    try {
+      alt.removeListener(_bgOnAskLoopAltTick);
+      await alt.pause();
+      await alt.setLooping(false);
+      await alt.setPlaybackSpeed(1.0);
+      _askLoopPlaybackSpeed = 1.0;
+      await alt.seekTo(Duration.zero);
+      alt.addListener(_bgOnAskLoopAltTick);
+      await alt.play();
+      final ready = await _waitVideoRenderable(alt, generation);
+      if (!ready) {
+        _abortAskVideoVisualOnly('ask02_1 first frame timeout');
+        return;
+      }
+      if (!mounted ||
+          (generation != null && generation != _askVideoGeneration)) {
+        return;
+      }
+      setState(() => _videoPhase = _ChatVideoPhase.askLoopAlt);
+      main.removeListener(_bgOnAskLoopTick);
+      unawaited(main.setPlaybackSpeed(1.0));
+      unawaited(_pauseAndRewindAskController(main));
+      unawaited(_pauseAndRewindAskController(_askIntroCtrl));
+      unawaited(_updateAskLoopPlaybackSpeed('handoffAlt'));
+    } finally {
+      _askLoopHandoffInFlight = false;
     }
-    if (!mounted || (generation != null && generation != _askVideoGeneration)) {
-      return;
-    }
-    setState(() => _videoPhase = _ChatVideoPhase.askLoopAlt);
-    unawaited(_updateAskLoopPlaybackSpeed('handoffAlt'));
   }
 
   Future<void> _bgBeginAskLoopAltOnly([int? generation]) async {
@@ -1664,39 +1848,41 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   Future<void> _bgBeginAskLoopMain([int? generation]) async {
     if (!mounted || _selectedHeroVideoAsset != null) return;
     if (generation != null && generation != _askVideoGeneration) return;
+    if (_askLoopHandoffInFlight) return;
     final loop = _askLoopCtrl;
     if (loop == null || !loop.value.isInitialized) return;
 
     final alt = _askLoopAltCtrl;
-    if (alt != null && alt.value.isInitialized) {
-      alt.removeListener(_bgOnAskLoopAltTick);
-      unawaited(alt.pause());
-      unawaited(alt.seekTo(Duration.zero));
-      unawaited(alt.setPlaybackSpeed(1.0));
+    _askLoopHandoffInFlight = true;
+    try {
+      loop.removeListener(_bgOnAskLoopTick);
+      await loop.pause();
+      // 统一用手动 listener 衔接结尾：避免与原生 setLooping(true) 叠加造成「同一段播两遍」。
+      await loop.setLooping(false);
+      await loop.setPlaybackSpeed(1.0);
+      _askLoopPlaybackSpeed = 1.0;
+      await loop.seekTo(Duration.zero);
+      loop.addListener(_bgOnAskLoopTick);
+      await loop.play();
+      final ready = await _waitVideoRenderable(loop, generation);
+      if (!ready) {
+        _abortAskVideoVisualOnly('doubaoask02 first frame timeout');
+        return;
+      }
+      if (!mounted ||
+          (generation != null && generation != _askVideoGeneration)) {
+        return;
+      }
+      setState(() => _videoPhase = _ChatVideoPhase.askLoop);
+      if (alt != null && alt.value.isInitialized) {
+        alt.removeListener(_bgOnAskLoopAltTick);
+        unawaited(alt.setPlaybackSpeed(1.0));
+        unawaited(_pauseAndRewindAskController(alt));
+      }
+      unawaited(_updateAskLoopPlaybackSpeed('handoffMain'));
+    } finally {
+      _askLoopHandoffInFlight = false;
     }
-
-    loop.removeListener(_bgOnAskLoopTick);
-    loop.addListener(_bgOnAskLoopTick);
-    // 统一用手动 listener 衔接结尾：避免与原生 setLooping(true) 叠加造成「同一段播两遍」。
-    await loop.setLooping(false);
-    await loop.setPlaybackSpeed(1.0);
-    _askLoopPlaybackSpeed = 1.0;
-    await loop.seekTo(Duration.zero);
-    await loop.play();
-    const frameWait = Duration(milliseconds: 14);
-    for (var i = 0;
-        i < 36 &&
-            mounted &&
-            (generation == null || generation == _askVideoGeneration);
-        i++) {
-      if (loop.value.size != Size.zero && loop.value.isPlaying) break;
-      await Future<void>.delayed(frameWait);
-    }
-    if (!mounted || (generation != null && generation != _askVideoGeneration)) {
-      return;
-    }
-    setState(() => _videoPhase = _ChatVideoPhase.askLoop);
-    unawaited(_updateAskLoopPlaybackSpeed('handoffMain'));
   }
 
   void _bgOnAskLoopAltTick() {
@@ -1704,7 +1890,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (!_askVideoActive ||
         c == null ||
         !c.value.isInitialized ||
-        _askLoopRestarting) {
+        _askLoopRestarting ||
+        _askLoopHandoffInFlight) {
       return;
     }
     _maybeTuneAskLoopPlaybackSpeedFromTick();
@@ -1715,6 +1902,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (_doubaoAskAlternating && nearEnd) {
       if (_videoPhase != _ChatVideoPhase.askLoopAlt) return;
       final gen = _askVideoGeneration;
+      _askLoopHandoffInFlight = true;
       c.removeListener(_bgOnAskLoopAltTick);
       unawaited(_handoffAskLoopAltToMainAfter(gen));
       return;
@@ -1732,13 +1920,18 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   Future<void> _handoffAskLoopAltToMainAfter(int generation) async {
     if (!_askVideoActive || _disposed) return;
-    if (generation != _askVideoGeneration) return;
+    if (generation != _askVideoGeneration) {
+      _askLoopHandoffInFlight = false;
+      return;
+    }
     final leftAfterEndMs =
         _volcEstimatedSpeechEndAt?.difference(DateTime.now()).inMilliseconds;
     if (leftAfterEndMs != null && leftAfterEndMs <= 420) {
+      _askLoopHandoffInFlight = false;
       unawaited(_bgBeginAskOutro(generation));
       return;
     }
+    _askLoopHandoffInFlight = false;
     await _handoffAskLoopAltToMain();
   }
 
@@ -1766,7 +1959,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (!_askVideoActive ||
         c == null ||
         !c.value.isInitialized ||
-        _askLoopRestarting) {
+        _askLoopRestarting ||
+        _askLoopHandoffInFlight) {
       return;
     }
     _maybeTuneAskLoopPlaybackSpeedFromTick();
@@ -1777,6 +1971,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (_doubaoAskAlternating && nearEnd) {
       if (_videoPhase != _ChatVideoPhase.askLoop) return;
       final gen = _askVideoGeneration;
+      _askLoopHandoffInFlight = true;
       c.removeListener(_bgOnAskLoopTick);
       unawaited(_handoffAskLoopMainToAltAfter(gen));
       return;
@@ -1793,14 +1988,19 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
 
   Future<void> _handoffAskLoopMainToAltAfter(int generation) async {
     if (!_askVideoActive || _disposed) return;
-    if (generation != _askVideoGeneration) return;
+    if (generation != _askVideoGeneration) {
+      _askLoopHandoffInFlight = false;
+      return;
+    }
     final leftAfterEndMs =
         _volcEstimatedSpeechEndAt?.difference(DateTime.now()).inMilliseconds;
     // 句尾已到：直接交给 ask03；否则回到 ask02_1 半周期。
     if (leftAfterEndMs != null && leftAfterEndMs <= 420) {
+      _askLoopHandoffInFlight = false;
       unawaited(_bgBeginAskOutro(generation));
       return;
     }
+    _askLoopHandoffInFlight = false;
     await _handoffAskLoopMainToAlt();
   }
 
@@ -1915,7 +2115,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   }
 
   void _scheduleAskOutro() {
-    if (_isKoreanHeroSelected) {
+    if (_useKoreanStylePlayback) {
       _clearAskVideoState();
       return;
     }
@@ -2057,30 +2257,47 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   }
 
   Future<void> _bgBeginAskOutro([int? generation]) async {
-    if (!mounted || _selectedHeroVideoAsset != null) return;
-    if (_isKoreanHeroSelected) {
-      _clearAskVideoState();
-      return;
+    try {
+      if (!mounted || _selectedHeroVideoAsset != null) return;
+      if (_useKoreanStylePlayback) {
+        _clearAskVideoState();
+        return;
+      }
+      if (!_askVideoActive) return;
+      if (generation != null && generation != _askVideoGeneration) return;
+      _askVideoActive = false;
+      _stopAskVideoHeartbeat();
+      _askLoopHandoffInFlight = false;
+      _askLoopPlaybackSpeed = 1.0;
+      _askLoopAltCtrl?.removeListener(_bgOnAskLoopAltTick);
+      unawaited(_askLoopAltCtrl?.setPlaybackSpeed(1.0));
+      _askLoopCtrl?.removeListener(_bgOnAskLoopTick);
+      unawaited(_askLoopCtrl?.setPlaybackSpeed(1.0));
+      final outro = _askOutroCtrl;
+      if (outro == null || !outro.value.isInitialized) {
+        unawaited(_bgBeginHait());
+        return;
+      }
+      // 先在后台让 outro seek + play，等首帧就绪再暂停 loop，避免切换瞬间白屏。
+      await outro.seekTo(Duration.zero);
+      outro.removeListener(_bgOnAskOutroTick);
+      outro.addListener(_bgOnAskOutroTick);
+      await outro.play();
+      final ready = await _waitVideoRenderable(outro, generation);
+      if (!ready) {
+        _abortAskVideoVisualOnly('ask03 first frame timeout');
+        return;
+      }
+      if (!mounted ||
+          (generation != null && generation != _askVideoGeneration)) {
+        return;
+      }
+      _bgPauseCurrent();
+      setState(() => _videoPhase = _ChatVideoPhase.askOutro);
+    } catch (e, st) {
+      debugPrint('[BgVideo] ask outro failed: $e\n$st');
+      _abortAskVideoVisualOnly('ask outro exception');
     }
-    if (!_askVideoActive) return;
-    if (generation != null && generation != _askVideoGeneration) return;
-    _askVideoActive = false;
-    _askLoopPlaybackSpeed = 1.0;
-    _askLoopAltCtrl?.removeListener(_bgOnAskLoopAltTick);
-    unawaited(_askLoopAltCtrl?.setPlaybackSpeed(1.0));
-    _askLoopCtrl?.removeListener(_bgOnAskLoopTick);
-    unawaited(_askLoopCtrl?.setPlaybackSpeed(1.0));
-    final outro = _askOutroCtrl;
-    if (outro == null || !outro.value.isInitialized) {
-      _bgBeginHait();
-      return;
-    }
-    _bgPauseCurrent();
-    await outro.seekTo(Duration.zero);
-    outro.removeListener(_bgOnAskOutroTick);
-    outro.addListener(_bgOnAskOutroTick);
-    await outro.play();
-    if (mounted) setState(() => _videoPhase = _ChatVideoPhase.askOutro);
   }
 
   void _bgOnAskOutroTick() {
@@ -2707,21 +2924,17 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       case VoiceDialogEventType.error:
         debugPrint('[VolcVoice] error: ${event.errorMessage}');
         _safeSetState(() {
-          _isThinking = false;
-          _sdkAiSpeaking = false;
           _volcConnected = false;
           _volcLastError = event.errorMessage;
         });
-        _scheduleAskOutro();
+        _abortAskVideoVisualOnly('volc error');
         unawaited(_recoverVolcSessionIfNeeded(event.errorMessage));
 
       case VoiceDialogEventType.disconnected:
         _safeSetState(() {
-          _sdkAiSpeaking = false;
-          _isThinking = false;
           _volcConnected = false;
         });
-        _scheduleAskOutro();
+        _abortAskVideoVisualOnly('volc disconnected');
         unawaited(_recoverVolcSessionIfNeeded(event.errorMessage));
     }
   }
@@ -2881,6 +3094,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _sttResumeTimer?.cancel();
     _sttCooldownEndsTimer?.cancel();
     _askVideoEndDebounceTimer?.cancel();
+    _stopAskVideoHeartbeat();
     _bgPauseCurrent();
     _stopKoreanShakeMotionListeners();
     _helloCtrl?.dispose();
@@ -3273,72 +3487,83 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                       if (ctrl == null || !ctrl.value.isInitialized) {
                         return const SizedBox.shrink();
                       }
-                      final videoSize = ctrl.value.size;
-                      if (videoSize == Size.zero) {
-                        return const SizedBox.shrink();
-                      }
-                      final scaleW = box.maxWidth / videoSize.width;
-                      final scaleH = box.maxHeight / videoSize.height;
-                      final coverScale = scaleW > scaleH ? scaleW : scaleH;
-                      final scale = coverScale *
-                          _kChatHeroVideoScaleFactor *
-                          _kChatHeroVideoVoiceExtraScale;
-                      // 直接显示原始视频，不做任何颜色滤镜或抠像处理
-                      final Widget videoCore = VideoPlayer(ctrl);
-                      final videoLayer = Transform.translate(
-                        offset: const Offset(0, _kChatHeroVideoOffsetY),
-                        child: ClipRect(
-                          child: OverflowBox(
-                            maxWidth: double.infinity,
-                            maxHeight: double.infinity,
-                            child: Transform.scale(
-                              scale: scale,
-                              child: SizedBox(
-                                width: videoSize.width,
-                                height: videoSize.height,
-                                child: videoCore,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-
-                      final videoDisplayH = videoSize.height * scale;
-                      final videoBottomY =
-                          ((box.maxHeight + videoDisplayH) / 2) +
-                              _kChatHeroVideoOffsetY;
-                      final fadeBottomInset = (box.maxHeight - videoBottomY)
-                          .clamp(0.0, box.maxHeight);
-                      final fadeH =
-                          (videoDisplayH * _kChatHeroBottomWhiteFadeFrac)
-                              .clamp(120.0, box.maxHeight);
-                      return Stack(
-                        fit: StackFit.expand,
-                        clipBehavior: Clip.none,
-                        children: [
-                          videoLayer,
-                          // 叠在视频之上：从实际显示的视频底边向上淡出（页面底色 100% → 0%）
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: fadeBottomInset,
-                            height: fadeH,
-                            child: IgnorePointer(
-                              child: DecoratedBox(
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    colors: [
-                                      _ChatLight.pageBg,
-                                      Color(0x00F7F7FA),
-                                    ],
+                      // ListenableBuilder 让 ctrl.value 变化（size 从 0 变非零、
+                      // isPlaying 等）时自动重建，不依赖外部 setState。
+                      return ListenableBuilder(
+                        listenable: ctrl,
+                        builder: (context, _) {
+                          // size 在 seekTo/play 初期可能短暂为 0；优先使用上一次非零尺寸，
+                          // 避免 scale 跳变到错误值导致视频一瞬间被"拉伸"，
+                          // 最终兜底仍用 720×1280 防止首次渲染前无值可用。
+                          final rawSize = ctrl.value.size;
+                          if (rawSize != Size.zero)
+                            _lastVideoRenderSize = rawSize;
+                          final videoSize = rawSize != Size.zero
+                              ? rawSize
+                              : (_lastVideoRenderSize ?? const Size(720, 1280));
+                          final scaleW = box.maxWidth / videoSize.width;
+                          final scaleH = box.maxHeight / videoSize.height;
+                          final coverScale = scaleW > scaleH ? scaleW : scaleH;
+                          final scale = coverScale *
+                              _kChatHeroVideoScaleFactor *
+                              _kChatHeroVideoVoiceExtraScale;
+                          final Widget videoCore = VideoPlayer(ctrl);
+                          final videoLayer = Transform.translate(
+                            offset: const Offset(0, _kChatHeroVideoOffsetY),
+                            child: ClipRect(
+                              child: OverflowBox(
+                                maxWidth: double.infinity,
+                                maxHeight: double.infinity,
+                                child: Transform.scale(
+                                  scale: scale,
+                                  child: SizedBox(
+                                    width: videoSize.width,
+                                    height: videoSize.height,
+                                    child: videoCore,
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          );
+
+                          final videoDisplayH = videoSize.height * scale;
+                          final videoBottomY =
+                              ((box.maxHeight + videoDisplayH) / 2) +
+                                  _kChatHeroVideoOffsetY;
+                          final fadeBottomInset = (box.maxHeight - videoBottomY)
+                              .clamp(0.0, box.maxHeight);
+                          final fadeH =
+                              (videoDisplayH * _kChatHeroBottomWhiteFadeFrac)
+                                  .clamp(120.0, box.maxHeight);
+                          return Stack(
+                            fit: StackFit.expand,
+                            clipBehavior: Clip.none,
+                            children: [
+                              videoLayer,
+                              // 叠在视频之上：从实际显示的视频底边向上淡出
+                              Positioned(
+                                left: 0,
+                                right: 0,
+                                bottom: fadeBottomInset,
+                                height: fadeH,
+                                child: IgnorePointer(
+                                  child: DecoratedBox(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                        colors: [
+                                          _ChatLight.pageBg,
+                                          Color(0x00F7F7FA),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
                   ),
@@ -3647,16 +3872,13 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   VideoPlayerController? _pickRenderableVideoController(
     VideoPlayerController? phaseCtrl,
   ) {
-    if (phaseCtrl != null &&
-        phaseCtrl.value.isInitialized &&
-        phaseCtrl.value.size != Size.zero) {
+    // 必须用当前 phase 的 controller（只要已初始化），即使 size 暂时为 Size.zero，
+    // 否则 seek 过渡期会误判到仍为 last-frame 的 ask 片段，产生拉伸变形或假死；
+    // 首帧留白由外层 ListenableBuilder + 兜底比例承担。
+    if (phaseCtrl != null && phaseCtrl.value.isInitialized) {
       return phaseCtrl;
     }
     final fallbacks = <VideoPlayerController?>[
-      _askLoopAltCtrl,
-      _askLoopCtrl,
-      _askIntroCtrl,
-      _askOutroCtrl,
       _breatheCtrl,
       _haitCtrl,
       _helloCtrl,
@@ -3664,9 +3886,13 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _koreanShakeCtrl,
       _koreanDanceCtrl,
       _doubaoCatCtrl,
+      _askLoopAltCtrl,
+      _askLoopCtrl,
+      _askIntroCtrl,
+      _askOutroCtrl,
     ];
     for (final c in fallbacks) {
-      if (c != null && c.value.isInitialized && c.value.size != Size.zero) {
+      if (c != null && c.value.isInitialized) {
         return c;
       }
     }
