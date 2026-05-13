@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// ─── Starpath · 浅色界面设计系统 ─────────────────────────────────────────────
 /// 中性浅底 + 紫系强调色；组件优先使用 [Theme.of] / [StarpathColors]
@@ -233,7 +232,7 @@ abstract final class StarpathJuicyIcons {
 class StarpathTheme {
   StarpathTheme._();
 
-  static const String chineseDisplayFont = 'HYZhongSongJ';
+  static const String chineseDisplayFont = 'HarmonyOSSansSC';
 
   /// Plus Jakarta Sans 不含中文（CJK）；全局优先保证中文走系统中文字体。
   /// Emoji 作为兜底放后面，避免中文被彩色 Emoji fallback 影响。
@@ -270,6 +269,7 @@ class StarpathTheme {
   }
 
   static TextStyle _plusJakartaWithEmoji(TextStyle style) => style.copyWith(
+        fontFamily: chineseDisplayFont,
         fontFamilyFallback: emojiFontFallback,
       );
 
@@ -277,19 +277,20 @@ class StarpathTheme {
   static ThemeData get lightTheme => darkTheme;
 
   static ThemeData get darkTheme {
-    TextStyle _h(double size, FontWeight weight) => _plusJakartaWithEmoji(
-          GoogleFonts.plusJakartaSans(
+    TextStyle headingStyle(double size, FontWeight weight) =>
+        _plusJakartaWithEmoji(
+          TextStyle(
             fontSize: size,
             fontWeight: weight,
-            letterSpacing: -0.02 * size,
+            letterSpacing: 0,
             color: StarpathColors.onSurface,
             height: 1.2,
           ),
         );
 
-    TextStyle _b(double size, FontWeight weight, Color color) =>
+    TextStyle bodyStyle(double size, FontWeight weight, Color color) =>
         _plusJakartaWithEmoji(
-          GoogleFonts.plusJakartaSans(
+          TextStyle(
             fontSize: size,
             fontWeight: weight,
             color: color,
@@ -301,7 +302,7 @@ class StarpathTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: StarpathColors.surface,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: StarpathColors.primary,
         onPrimary: StarpathColors.onPrimary,
         primaryContainer: StarpathColors.primaryContainer,
@@ -331,11 +332,11 @@ class StarpathTheme {
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: _plusJakartaWithEmoji(
-          GoogleFonts.plusJakartaSans(
+          const TextStyle(
             color: StarpathColors.onSurface,
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            letterSpacing: -0.34,
+            letterSpacing: 0,
           ),
         ),
         iconTheme: const IconThemeData(color: StarpathColors.onSurfaceVariant),
@@ -369,15 +370,14 @@ class StarpathTheme {
           borderSide: const BorderSide(color: StarpathColors.error, width: 2),
         ),
         hintStyle: _plusJakartaWithEmoji(
-          GoogleFonts.plusJakartaSans(
+          TextStyle(
             color: StarpathColors.onSurfaceVariant.withValues(alpha: 0.5),
             fontSize: 15,
           ),
         ),
         prefixIconColor: StarpathColors.onSurfaceVariant,
         errorStyle: _plusJakartaWithEmoji(
-          GoogleFonts.plusJakartaSans(
-              color: StarpathColors.error, fontSize: 12),
+          const TextStyle(color: StarpathColors.error, fontSize: 12),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -399,7 +399,7 @@ class StarpathTheme {
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return _plusJakartaWithEmoji(
-              GoogleFonts.plusJakartaSans(
+              const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: StarpathColors.primary,
@@ -407,7 +407,7 @@ class StarpathTheme {
             );
           }
           return _plusJakartaWithEmoji(
-            GoogleFonts.plusJakartaSans(
+            const TextStyle(
               fontSize: 11,
               color: StarpathColors.onSurfaceVariant,
             ),
@@ -422,20 +422,24 @@ class StarpathTheme {
         }),
       ),
       textTheme: TextTheme(
-        displayLarge: _h(56, FontWeight.bold),
-        displayMedium: _h(44, FontWeight.bold),
-        headlineLarge: _h(32, FontWeight.bold),
-        headlineMedium: _h(24, FontWeight.w700),
-        headlineSmall: _h(18, FontWeight.w600),
-        titleLarge: _h(17, FontWeight.w600),
-        titleMedium: _b(15, FontWeight.w600, StarpathColors.onSurface),
-        titleSmall: _b(13, FontWeight.w600, StarpathColors.onSurface),
-        bodyLarge: _b(16, FontWeight.normal, StarpathColors.onSurfaceVariant),
-        bodyMedium: _b(14, FontWeight.normal, StarpathColors.onSurfaceVariant),
-        bodySmall: _b(12, FontWeight.normal, StarpathColors.onSurfaceVariant),
-        labelLarge: _b(14, FontWeight.w600, StarpathColors.onSurface),
-        labelMedium: _b(12, FontWeight.w500, StarpathColors.onSurfaceVariant),
-        labelSmall: _b(11, FontWeight.w500,
+        displayLarge: headingStyle(56, FontWeight.bold),
+        displayMedium: headingStyle(44, FontWeight.bold),
+        headlineLarge: headingStyle(32, FontWeight.bold),
+        headlineMedium: headingStyle(24, FontWeight.w700),
+        headlineSmall: headingStyle(18, FontWeight.w600),
+        titleLarge: headingStyle(17, FontWeight.w600),
+        titleMedium: bodyStyle(15, FontWeight.w600, StarpathColors.onSurface),
+        titleSmall: bodyStyle(13, FontWeight.w600, StarpathColors.onSurface),
+        bodyLarge:
+            bodyStyle(16, FontWeight.normal, StarpathColors.onSurfaceVariant),
+        bodyMedium:
+            bodyStyle(14, FontWeight.normal, StarpathColors.onSurfaceVariant),
+        bodySmall:
+            bodyStyle(12, FontWeight.normal, StarpathColors.onSurfaceVariant),
+        labelLarge: bodyStyle(14, FontWeight.w600, StarpathColors.onSurface),
+        labelMedium:
+            bodyStyle(12, FontWeight.w500, StarpathColors.onSurfaceVariant),
+        labelSmall: bodyStyle(11, FontWeight.w500,
             StarpathColors.onSurfaceVariant.withValues(alpha: 0.7)),
       ),
     );

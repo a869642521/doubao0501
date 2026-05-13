@@ -46,6 +46,8 @@ const List<String> _kIpAvatars = [
 ];
 
 const String _kDoubaoAvatarAsset = 'images/doubaoicon.jpg';
+const String _kJohnsonAvatarAsset = 'images/johnson.png';
+const String _kEricaAvatarAsset = 'images/erica.png';
 const String _kChatPartnerBgAsset = 'images/bg.jpg';
 const String _kDoubaoHeroHelloBase = 'video/doubao01';
 const String _kDoubaoHeroHaitBase = 'video/doubao02';
@@ -73,6 +75,15 @@ const Duration _kKoreanShakeDebounce = Duration(milliseconds: 2200);
 const Duration _kKoreanDanceDebounce = Duration(milliseconds: 2600);
 
 const String _kKoreanDanceAssistantReply = '好呀';
+
+/// johnson 彩蛋：识别到「我们是冠军」类说法后播放 `J_GJ.mov`。
+const Duration _kJohnsonChampionDebounce = Duration(milliseconds: 2600);
+const String _kJohnsonChampionAssistantReply = '走起！';
+
+/// johnson：用户用「师傅 / 师父」问职业 / 身份类问题时播放 `J_03`。
+const Duration _kJohnsonCareerDebounce = Duration(milliseconds: 2600);
+const String _kJohnsonCareerAssistantReply =
+    '我是ROEHL 智能家居掌舵人，北大博士 + 杜克 MBA！做过麦肯锡高管、世界经济论坛项目负责人，还在拳头带火 LPL，现在专注智能家居搞低碳～';
 
 /// 用户是否在邀请豆包「跳舞」（口语 / 中英混合，偏保守匹配）。
 bool _utteranceLooksLikeDoubaoDanceRequest(String raw) {
@@ -108,6 +119,106 @@ bool _utteranceLooksLikeDoubaoDanceRequest(String raw) {
   }
 
   return mentionsDanceCn() || permissiveCn() || mentionsDanceEn();
+}
+
+/// johnson 彩蛋：用户说「我们是冠军」或相近表达时触发。
+bool _utteranceLooksLikeJohnsonChampionRequest(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return false;
+  final lc = s.toLowerCase();
+
+  if (s.contains('我们是冠军')) return true;
+  if (s.contains('我们是最强')) return true;
+  if (s.contains('冠军')) {
+    return RegExp(r'(我们|咱们|咱们都|咱)').hasMatch(s);
+  }
+  if (lc.contains('we are champions')) return true;
+  if (lc.contains('we are the champions')) return true;
+  return false;
+}
+
+/// Erica 彩蛋：宠物 dollar（刀乐）触发 `E_dl.mov`。
+const Duration _kEricaPetDebounce = Duration(milliseconds: 2600);
+const String _kEricaPetAssistantReply = '这是我的宠物dollar，可爱吧';
+
+bool _utteranceLooksLikeEricaPetRequest(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return false;
+  final lc = s.toLowerCase();
+
+  // 直接提到 dollar / 刀乐
+  if (lc.contains('dollar')) return true;
+  if (s.contains('刀乐')) return true;
+
+  // 问宠物
+  if (RegExp(r'(有没有|有木有|你有|你养了|你家有).{0,10}宠物').hasMatch(s)) return true;
+  if (RegExp(r'(养|有).{0,8}(宠物|猫|狗|兔|鸟|鱼)').hasMatch(s) &&
+      RegExp(r'(吗|呢|嘛|呀|呗|吧|没|没有)').hasMatch(s)) return true;
+  if (s.contains('你的宠物') || s.contains('你有宠物')) return true;
+  if (s.contains('给我看看') &&
+      RegExp(r'(宠物|猫|狗|dollar|刀乐)').hasMatch(lc + s)) return true;
+
+  // 英文
+  if (lc.contains('pet') &&
+      RegExp(r'(do you have|got a|show me|your|any)').hasMatch(lc)) {
+    return true;
+  }
+  return false;
+}
+
+/// Erica 彩蛋：「跳舞 / 刀马旦 / 才艺 / 表演」等语义触发 `E_Dance.mov`（带原声，不读 TTS）。
+const Duration _kEricaDanceDebounce = Duration(milliseconds: 2600);
+const String _kEricaDanceAssistantReply = '好呀';
+
+bool _utteranceLooksLikeEricaDanceRequest(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return false;
+  final lc = s.toLowerCase();
+
+  // 跳舞相关
+  if (s.contains('跳舞')) return true;
+  if (s.contains('刀马旦') || s.contains('刀马刀马')) return true;
+  if (RegExp(r'跳.{0,6}(一个|一支|一段|个)').hasMatch(s)) return true;
+  if (RegExp(r'(给我|来|跳).{0,10}舞').hasMatch(s)) return true;
+
+  // 才艺 / 表演
+  if (s.contains('才艺')) return true;
+  if (RegExp(r'表演.{0,8}(一个|个|下|给我|才艺)?').hasMatch(s) &&
+      RegExp(r'(吗|呢|嘛|呀|呗|吧|好不|行不行|可以吗|给我|来一个)').hasMatch(s)) {
+    return true;
+  }
+  if (s.contains('给我表演') || s.contains('来个表演')) return true;
+
+  // 英文
+  if (lc.contains('dance') &&
+      RegExp(r'(can you|will you|please|show me|gimme|give me)')
+          .hasMatch(lc)) {
+    return true;
+  }
+  if (lc.contains('talent') || lc.contains('perform')) {
+    if (RegExp(r'(show|can you|give me|let me see)').hasMatch(lc)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// johnson：师傅 / 师父 + 询问职业 / 身份 / 做什么 的宽泛匹配。
+bool _utteranceLooksLikeJohnsonCareerRequest(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return false;
+  if (!s.contains('师傅') && !s.contains('师父')) return false;
+  // 含「工作」关键词
+  if (s.contains('工作')) return true;
+  // 做什么 / 干什么 / 是做什么 / 是干什么
+  if (RegExp(r'(做|干).{0,8}(什么|啥)').hasMatch(s)) return true;
+  // 是做什么的 / 你是什么人
+  if (RegExp(r'是.{0,6}(什么|啥).{0,4}的').hasMatch(s)) return true;
+  // 职业 / 职位 / 身份
+  if (s.contains('职业') || s.contains('职位') || s.contains('身份')) return true;
+  // 你是谁 / 你是什么人
+  if (RegExp(r'你是(谁|什么人)').hasMatch(s)) return true;
+  return false;
 }
 
 /// 彩蛋视频：用户问「养猫」语义时在原皮豆包分支加载。
@@ -183,6 +294,15 @@ enum _ChatVideoPhase {
 
   /// 原皮豆包彩蛋：doubaocat.mov。
   doubaoCat,
+
+  /// johnson：师傅问职业 / 身份时播放 `J_03`。
+  johnsonCareer,
+
+  /// Erica 彩蛋：跳舞 / 才艺触发 `E_Dance.mov`（= downVideo）。
+  ericaDance,
+
+  /// Erica 彩蛋：宠物 dollar 触发 `E_dl.mov`。
+  ericaPet,
   askIntro,
   askLoopAlt,
   askLoop,
@@ -263,13 +383,19 @@ String _ipAvatarForAgent(String? agentId) {
   return _kIpAvatars[agentId.hashCode.abs() % _kIpAvatars.length];
 }
 
-/// 圆形伙伴头像 Widget：优先使用豆包头像，缺失时回退到原 ip 头像。
-Widget _ipAvatarWidget({required String? agentId, required double size}) {
+/// 圆形伙伴头像 Widget。
+/// [asset] 可覆盖默认头像（用于 johnson / erica 等 IP 形象），缺省为豆包头像。
+Widget _ipAvatarWidget({
+  required String? agentId,
+  required double size,
+  String? asset,
+}) {
+  final primaryAsset = asset ?? _kDoubaoAvatarAsset;
   final fallbackAsset = _ipAvatarForAgent(agentId);
   return ClipRRect(
     borderRadius: BorderRadius.circular(size / 2),
     child: Image.asset(
-      _kDoubaoAvatarAsset,
+      primaryAsset,
       width: size,
       height: size,
       fit: BoxFit.cover,
@@ -378,6 +504,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   /// 当前手动选择的角色视频；null 表示使用豆包默认视频。
   String? _selectedHeroVideoAsset;
 
+  /// 外部大卡片传入的双段视频：hello 播一次后，breathe 常驻循环。
+  bool _heroBreatheLoopsContinuously = false;
+
   /// 「韩系」等：使用该目录内的 doubao01…04 多分镜。
   String? _selectedDoubaoHeroClipDirectory;
   VideoPlayerController? _koreanShakeCtrl;
@@ -392,6 +521,20 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   VideoPlayerController? _doubaoCatCtrl;
   bool _doubaoCatClipPlaying = false;
   DateTime? _lastDoubaoCatEggPlayedAt;
+
+  bool _johnsonChampionClipPlaying = false;
+  DateTime? _lastJohnsonChampionPlayedAt;
+
+  bool _ericaDanceClipPlaying = false;
+  DateTime? _lastEricaDancePlayedAt;
+
+  VideoPlayerController? _ericaPetCtrl;
+  bool _ericaPetClipPlaying = false;
+  DateTime? _lastEricaPetPlayedAt;
+
+  VideoPlayerController? _johnsonCareerCtrl;
+  bool _johnsonCareerClipPlaying = false;
+  DateTime? _lastJohnsonCareerPlayedAt;
 
   /// 默认豆包形象中，doubao03 当前已连续播放次数；播满 2 次后回到 doubao02。
   int _doubao03PlayCount = 0;
@@ -670,14 +813,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       if (!out.contains(s)) out.add(s);
     }
 
+    // 大卡片 / 路由传入的视频属于当前伙伴的关联资源，必须优先于豆包默认资源。
+    addUnique(fromWidget);
+    addUnique(fromPartner);
     addUnique(_selectedHeroVideoAsset);
-    // 默认优先使用 doubao01；旧路由参数和持久化数据只作为兜底。
     for (final p in AppConstants.partnerHeroVideoCandidates) {
       addUnique(p);
     }
-    addUnique(fromWidget);
-    addUnique(fromPartner);
     return out;
+  }
+
+  /// 大卡片传入的 `video/.../J_01.mov` 等路径：去掉后缀后走与豆包相同的格式优先级，
+  /// 以便 Android 优先加载同名的 `.webm`（VP9），避免 HEVC `.mov` 无法解码导致黑屏。
+  List<String> _bundledVideoFormatCandidates(String? fullAssetPath) {
+    final t = fullAssetPath?.trim();
+    if (t == null || t.isEmpty) return const [];
+    final q = t.lastIndexOf('.');
+    final base = q > 0 ? t.substring(0, q) : t;
+    return _videoAssetCandidates(base);
   }
 
   List<String> _videoAssetCandidates(String basePathWithoutExt) {
@@ -720,6 +873,41 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     return out;
   }
 
+  bool get _usesExternalLoopingHeroSequence {
+    final hello = widget.helloVideo?.trim();
+    final loop = widget.breatheVideo?.trim();
+    if (hello == null || hello.isEmpty || loop == null || loop.isEmpty) {
+      return false;
+    }
+    final defaultVideos = AppConstants.partnerHeroVideoCandidates.toSet();
+    final name = widget.agentName?.trim().toLowerCase();
+    return !defaultVideos.contains(hello) ||
+        !defaultVideos.contains(loop) ||
+        (name != null && name.isNotEmpty && name != '豆包');
+  }
+
+  /// Johnson IP 预加载 `J_03`（与 [_isJohnsonTravelBuddySelected] 对齐的 widget 侧判定）。
+  bool get _shouldLoadJohnsonCareerClip {
+    final name = widget.agentName?.trim().toLowerCase();
+    if (name == 'johnson') return true;
+    for (final raw in [widget.helloVideo, widget.breatheVideo, widget.downVideo]) {
+      final s = raw?.trim() ?? '';
+      if (s.contains('ip_johnson')) return true;
+    }
+    return widget.downVideo?.contains('J_GJ') ?? false;
+  }
+
+  /// Erica IP 预加载 `E_dl.mov`（宠物 dollar 彩蛋）。
+  bool get _shouldLoadEricaPetClip {
+    final name = widget.agentName?.trim().toLowerCase();
+    if (name == 'erica') return true;
+    for (final raw in [widget.helloVideo, widget.breatheVideo, widget.downVideo]) {
+      final s = raw?.trim() ?? '';
+      if (s.contains('ip_Erica')) return true;
+    }
+    return false;
+  }
+
   Future<VideoPlayerController?> _initFirstWorking(
     List<String> candidates, {
     required bool loop,
@@ -734,6 +922,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   Future<void> _initBgVideo() async {
     if (_bgVideoLifecycleStarted) return;
     _bgVideoLifecycleStarted = true;
+    _heroBreatheLoopsContinuously = false;
 
     final mp = ref.read(mainPartnerProvider);
 
@@ -803,6 +992,59 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       if (mounted) setState(() => _videoReady = true);
       _bgBeginHello();
       _startKoreanShakeMotionListeners();
+      return;
+    }
+
+    if (_usesExternalLoopingHeroSequence) {
+      final loadCareer = _shouldLoadJohnsonCareerClip;
+      final loadEricaPet = _shouldLoadEricaPetClip;
+      final results = await Future.wait([
+        _initFirstWorking(
+          _bundledVideoFormatCandidates(widget.helloVideo),
+          loop: false,
+        ),
+        _initFirstWorking(
+          _bundledVideoFormatCandidates(widget.breatheVideo),
+          loop: true,
+        ),
+        _initFirstWorking(
+          _bundledVideoFormatCandidates(widget.downVideo),
+          loop: false,
+        ),
+        loadCareer
+            ? _initFirstWorking(
+                _bundledVideoFormatCandidates('video/ip_johnson/J_03.mov'),
+                loop: false,
+              )
+            : Future<VideoPlayerController?>.value(null),
+        loadEricaPet
+            ? _initFirstWorking(
+                _bundledVideoFormatCandidates('video/ip_Erica/E_dl.mov'),
+                loop: false,
+              )
+            : Future<VideoPlayerController?>.value(null),
+      ]);
+      if (!mounted) return;
+
+      _helloCtrl = results[0];
+      _breatheCtrl = results[1];
+      _downCtrl = results[2];
+      _johnsonCareerCtrl = loadCareer ? results[3] : null;
+      _ericaPetCtrl = loadEricaPet ? results[4] : null;
+      _heroBreatheLoopsContinuously = true;
+
+      if (_helloCtrl == null && _breatheCtrl == null) {
+        _heroBreatheLoopsContinuously = false;
+        _bgVideoLifecycleStarted = false;
+        debugPrint(
+          '[BgVideo] Johnson/IP 形象视频加载失败：请确认对应目录已在 pubspec 声明；'
+          'Android 需同名的 .webm（VP9），仅 HEVC .mov 可能无法解码。',
+        );
+        return;
+      }
+
+      if (mounted) setState(() => _videoReady = true);
+      _bgBeginHello();
       return;
     }
 
@@ -913,6 +1155,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _koreanShakeClipPlaying = false;
     _koreanDanceClipPlaying = false;
     _doubaoCatClipPlaying = false;
+    _johnsonCareerClipPlaying = false;
     _helloCtrl?.removeListener(_bgOnHelloTick);
     _haitCtrl?.removeListener(_bgOnHaitTick);
     _breatheCtrl?.removeListener(_bgOnBreatheTick);
@@ -924,6 +1167,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _koreanShakeCtrl?.removeListener(_bgOnKoreanShakeTick);
     _koreanDanceCtrl?.removeListener(_bgOnKoreanDanceTick);
     _doubaoCatCtrl?.removeListener(_bgOnDoubaoCatTick);
+    _johnsonCareerCtrl?.removeListener(_bgOnJohnsonCareerTick);
+    _ericaPetCtrl?.removeListener(_bgOnEricaPetTick);
     final ctrls = <VideoPlayerController?>[
       _helloCtrl,
       _haitCtrl,
@@ -936,6 +1181,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _koreanDanceCtrl,
       _koreanShakeCtrl,
       _doubaoCatCtrl,
+      _johnsonCareerCtrl,
+      _ericaPetCtrl,
     ];
     _helloCtrl = null;
     _haitCtrl = null;
@@ -948,6 +1195,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _koreanShakeCtrl = null;
     _koreanDanceCtrl = null;
     _doubaoCatCtrl = null;
+    _johnsonCareerCtrl = null;
+    _ericaPetCtrl = null;
     _doubao03PlayCount = 0;
     await Future.wait(
       ctrls.whereType<VideoPlayerController>().map((c) async {
@@ -1069,6 +1318,26 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   bool _isDoubaoCatEggRequest(String utterance) {
     return _isDefaultDoubaoHero &&
         _utteranceLooksLikeDoubaoCatEggQuestion(utterance);
+  }
+
+  bool _isJohnsonChampionRequest(String utterance) {
+    return _isJohnsonTravelBuddySelected &&
+        _utteranceLooksLikeJohnsonChampionRequest(utterance);
+  }
+
+  bool _isJohnsonCareerRequest(String utterance) {
+    return _isJohnsonTravelBuddySelected &&
+        _utteranceLooksLikeJohnsonCareerRequest(utterance);
+  }
+
+  bool _isEricaDanceRequest(String utterance) {
+    return _isEricaSelected &&
+        _utteranceLooksLikeEricaDanceRequest(utterance);
+  }
+
+  bool _isEricaPetRequest(String utterance) {
+    return _isEricaSelected &&
+        _utteranceLooksLikeEricaPetRequest(utterance);
   }
 
   void _emitSavedTurn(String userText, String assistantText) {
@@ -1235,9 +1504,38 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     unawaited(_bgBeginHait());
   }
 
+  void _resumeHeroLoopAfterJohnsonCareer() {
+    _johnsonCareerClipPlaying = false;
+    _askVideoEndDebounceTimer?.cancel();
+    _askVideoActive = false;
+    _askLoopRestarting = false;
+    _askVideoGeneration++;
+    unawaited(_bgBeginHait());
+  }
+
   void _maybeTriggerDoubaoCatFromUtterance(String utterance) {
     if (!_isDoubaoCatEggRequest(utterance)) return;
     unawaited(_tryPlayDoubaoCatClipFromUtterance());
+  }
+
+  void _maybeTriggerJohnsonChampionFromUtterance(String utterance) {
+    if (!_isJohnsonChampionRequest(utterance)) return;
+    unawaited(_tryPlayJohnsonChampionClipFromUtterance());
+  }
+
+  void _maybeTriggerJohnsonCareerFromUtterance(String utterance) {
+    if (!_isJohnsonCareerRequest(utterance)) return;
+    unawaited(_tryPlayJohnsonCareerClipFromUtterance());
+  }
+
+  void _maybeTriggerEricaDanceFromUtterance(String utterance) {
+    if (!_isEricaDanceRequest(utterance)) return;
+    unawaited(_tryPlayEricaDanceFromUtterance());
+  }
+
+  void _maybeTriggerEricaPetFromUtterance(String utterance) {
+    if (!_isEricaPetRequest(utterance)) return;
+    unawaited(_tryPlayEricaPetFromUtterance());
   }
 
   Future<void> _tryPlayDoubaoCatClipFromUtterance() async {
@@ -1272,6 +1570,319 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     setState(() => _videoPhase = _ChatVideoPhase.doubaoCat);
   }
 
+  Future<void> _tryPlayJohnsonChampionClipFromUtterance() async {
+    if (_disposed || !mounted || !_videoReady) return;
+    if (!_isJohnsonTravelBuddySelected) return;
+    if (_askVideoActive) return;
+    if (_inlineTextMode || _showFullTextChat) return;
+    if (_johnsonCareerClipPlaying ||
+        _videoPhase == _ChatVideoPhase.johnsonCareer) {
+      return;
+    }
+    if (_johnsonChampionClipPlaying) return;
+    if (_videoPhase == _ChatVideoPhase.down) return;
+
+    final c = _downCtrl;
+    if (c == null || !c.value.isInitialized) return;
+
+    final now = DateTime.now();
+    final last = _lastJohnsonChampionPlayedAt;
+    if (last != null && now.difference(last) < _kJohnsonChampionDebounce) {
+      return;
+    }
+    _lastJohnsonChampionPlayedAt = now;
+
+    _johnsonChampionClipPlaying = true;
+    _bgPauseCurrent();
+
+    c.removeListener(_bgOnDownTick);
+    await c.pause();
+    await c.seekTo(Duration.zero);
+    c.addListener(_bgOnDownTick);
+    await c.play();
+    if (_disposed || !mounted) return;
+    setState(() => _videoPhase = _ChatVideoPhase.down);
+  }
+
+  Future<void> _tryPlayJohnsonCareerClipFromUtterance() async {
+    if (_disposed || !mounted || !_videoReady) return;
+    if (!_isJohnsonTravelBuddySelected) return;
+    if (_askVideoActive) return;
+    if (_inlineTextMode || _showFullTextChat) return;
+    if (_johnsonChampionClipPlaying) return;
+    if (_johnsonCareerClipPlaying ||
+        _videoPhase == _ChatVideoPhase.johnsonCareer) {
+      return;
+    }
+    final c = _johnsonCareerCtrl;
+    if (c == null || !c.value.isInitialized) return;
+
+    final now = DateTime.now();
+    final last = _lastJohnsonCareerPlayedAt;
+    if (last != null && now.difference(last) < _kJohnsonCareerDebounce) {
+      return;
+    }
+    _lastJohnsonCareerPlayedAt = now;
+
+    _clearAskVideoState();
+
+    _johnsonCareerClipPlaying = true;
+    _bgPauseCurrent();
+
+    await c.setVolume(0);
+
+    c.removeListener(_bgOnJohnsonCareerTick);
+    await c.pause();
+    await c.seekTo(Duration.zero);
+    c.addListener(_bgOnJohnsonCareerTick);
+    await c.play();
+    if (_disposed || !mounted) return;
+    setState(() => _videoPhase = _ChatVideoPhase.johnsonCareer);
+  }
+
+  Future<void> _tryPlayEricaDanceFromUtterance() async {
+    if (_disposed || !mounted || !_videoReady) return;
+    if (!_isEricaSelected) return;
+    if (_askVideoActive) return;
+    if (_inlineTextMode || _showFullTextChat) return;
+    if (_ericaDanceClipPlaying || _videoPhase == _ChatVideoPhase.ericaDance) {
+      return;
+    }
+    final c = _downCtrl;
+    if (c == null || !c.value.isInitialized) return;
+
+    final now = DateTime.now();
+    final last = _lastEricaDancePlayedAt;
+    if (last != null && now.difference(last) < _kEricaDanceDebounce) return;
+    _lastEricaDancePlayedAt = now;
+
+    _ericaDanceClipPlaying = true;
+    _bgPauseCurrent();
+
+    c.removeListener(_bgOnDownTick);
+    await c.pause();
+    await c.seekTo(Duration.zero);
+    await c.setVolume(1); // E_Dance 播原声，让舞蹈视频的音轨正常输出
+    c.addListener(_bgOnEricaDanceTick);
+    await c.play();
+    if (_disposed || !mounted) return;
+    setState(() => _videoPhase = _ChatVideoPhase.ericaDance);
+  }
+
+  void _bgOnEricaDanceTick() {
+    final c = _downCtrl;
+    if (c == null || !c.value.isInitialized) return;
+    final dur = c.value.duration;
+    if (dur == Duration.zero) return;
+    if (c.value.position + const Duration(milliseconds: 100) >= dur) {
+      c.removeListener(_bgOnEricaDanceTick);
+      c.pause();
+      unawaited(c.seekTo(Duration.zero));
+      unawaited(c.setVolume(0)); // 恢复静音，避免后续普通播放出声
+      _ericaDanceClipPlaying = false;
+      unawaited(_bgBeginHait());
+    }
+  }
+
+  void _finalizeEricaDanceRound(
+    String userText, {
+    bool speakAssistantReply = false, // 视频播原声，默认不触发 TTS
+  }) {
+    final text = userText.trim();
+    if (text.isEmpty) return;
+
+    _maybeTriggerEricaDanceFromUtterance(text);
+    _sttFinalizeTimer?.cancel();
+    _sttFinalizeTimer = null;
+    _sttSessionBest = '';
+    _thinkingTimer?.cancel();
+    _pendingSpeakAssistantReply = speakAssistantReply;
+
+    var alreadyCompleted = false;
+    _safeSetState(() {
+      _voiceTranscript = '';
+      if (_messages.length >= 2 &&
+          !_messages.last.isUser &&
+          _messages.last.content == _kEricaDanceAssistantReply &&
+          _messages[_messages.length - 2].isUser) {
+        alreadyCompleted = true;
+        final lastUser = _messages[_messages.length - 2];
+        _messages[_messages.length - 2] = MessageModel(
+          id: lastUser.id,
+          role: lastUser.role,
+          content: _preferRicherTranscript(lastUser.content, text),
+          voicePlain: lastUser.voicePlain,
+          createdAt: lastUser.createdAt,
+        );
+      } else if (_messages.isNotEmpty && _messages.last.isUser) {
+        final last = _messages.last;
+        _messages[_messages.length - 1] = MessageModel(
+          id: last.id,
+          role: last.role,
+          content: _preferRicherTranscript(last.content, text),
+          voicePlain: last.voicePlain,
+          createdAt: last.createdAt,
+        );
+      } else {
+        _messages.add(MessageModel(
+          role: 'user',
+          content: text,
+          createdAt: DateTime.now(),
+        ));
+      }
+      if (!alreadyCompleted) {
+        _messages.add(MessageModel(
+          role: 'assistant',
+          content: _kEricaDanceAssistantReply,
+          createdAt: DateTime.now(),
+        ));
+      }
+      _isThinking = false;
+      _sdkAiSpeaking = false;
+      _sdkAiBuffer = _kEricaDanceAssistantReply;
+      _streamingContent = '';
+      _thinkingContent = '';
+      _settledCount = _messages.length;
+    });
+    _scrollToBottom();
+    if (!alreadyCompleted) {
+      HapticFeedback.lightImpact();
+      _emitSavedTurn(text, _kEricaDanceAssistantReply);
+      ref.invalidate(conversationsProvider);
+      if (speakAssistantReply) {
+        unawaited(_speakAssistantReplyIfNeeded());
+      } else {
+        _maybeStartListening(); // 视频原声结束后继续拾音
+      }
+    }
+  }
+
+  void _finalizeVolcEricaDanceRound(String userText) {
+    _volcSkipNextAiOutputs = true;
+    _volcCurrentUserText = '';
+    // 不 interrupt：保持端到端引擎持续在线，仅在 UI 层接管「好呀」并屏蔽后续 AI 输出。
+    _finalizeEricaDanceRound(userText);
+  }
+
+  Future<void> _tryPlayEricaPetFromUtterance() async {
+    if (_disposed || !mounted || !_videoReady) return;
+    if (!_isEricaSelected) return;
+    if (_askVideoActive) return;
+    if (_inlineTextMode || _showFullTextChat) return;
+    if (_ericaDanceClipPlaying || _videoPhase == _ChatVideoPhase.ericaDance) {
+      return;
+    }
+    if (_ericaPetClipPlaying || _videoPhase == _ChatVideoPhase.ericaPet) {
+      return;
+    }
+    final c = _ericaPetCtrl;
+    if (c == null || !c.value.isInitialized) return;
+
+    final now = DateTime.now();
+    final last = _lastEricaPetPlayedAt;
+    if (last != null && now.difference(last) < _kEricaPetDebounce) return;
+    _lastEricaPetPlayedAt = now;
+
+    _ericaPetClipPlaying = true;
+    _bgPauseCurrent();
+
+    c.removeListener(_bgOnEricaPetTick);
+    await c.pause();
+    await c.seekTo(Duration.zero);
+    c.addListener(_bgOnEricaPetTick);
+    await c.play();
+    if (_disposed || !mounted) return;
+    setState(() => _videoPhase = _ChatVideoPhase.ericaPet);
+  }
+
+  void _bgOnEricaPetTick() {
+    final c = _ericaPetCtrl;
+    if (c == null || !c.value.isInitialized) return;
+    final dur = c.value.duration;
+    if (dur == Duration.zero) return;
+    if (c.value.position + const Duration(milliseconds: 100) >= dur) {
+      c.removeListener(_bgOnEricaPetTick);
+      c.pause();
+      unawaited(c.seekTo(Duration.zero));
+      _ericaPetClipPlaying = false;
+      unawaited(_bgBeginHait());
+    }
+  }
+
+  void _finalizeEricaPetRound(String userText) {
+    final text = userText.trim();
+    if (text.isEmpty) return;
+
+    _maybeTriggerEricaPetFromUtterance(text);
+    _sttFinalizeTimer?.cancel();
+    _sttFinalizeTimer = null;
+    _sttSessionBest = '';
+    _thinkingTimer?.cancel();
+
+    var alreadyCompleted = false;
+    _safeSetState(() {
+      _voiceTranscript = '';
+      if (_messages.length >= 2 &&
+          !_messages.last.isUser &&
+          _messages.last.content == _kEricaPetAssistantReply &&
+          _messages[_messages.length - 2].isUser) {
+        alreadyCompleted = true;
+        final lastUser = _messages[_messages.length - 2];
+        _messages[_messages.length - 2] = MessageModel(
+          id: lastUser.id,
+          role: lastUser.role,
+          content: _preferRicherTranscript(lastUser.content, text),
+          voicePlain: lastUser.voicePlain,
+          createdAt: lastUser.createdAt,
+        );
+      } else if (_messages.isNotEmpty && _messages.last.isUser) {
+        final last = _messages.last;
+        _messages[_messages.length - 1] = MessageModel(
+          id: last.id,
+          role: last.role,
+          content: _preferRicherTranscript(last.content, text),
+          voicePlain: last.voicePlain,
+          createdAt: last.createdAt,
+        );
+      } else {
+        _messages.add(MessageModel(
+          role: 'user',
+          content: text,
+          createdAt: DateTime.now(),
+        ));
+      }
+      if (!alreadyCompleted) {
+        _messages.add(MessageModel(
+          role: 'assistant',
+          content: _kEricaPetAssistantReply,
+          createdAt: DateTime.now(),
+        ));
+      }
+      _settledCount = _messages.length;
+    });
+    _scrollToBottom();
+    if (!alreadyCompleted) {
+      HapticFeedback.lightImpact();
+      _emitSavedTurn(text, _kEricaPetAssistantReply);
+      ref.invalidate(conversationsProvider);
+      _pendingSpeakAssistantReply = true;
+      unawaited(_speakAssistantReplyIfNeeded());
+    }
+  }
+
+  void _bgOnJohnsonCareerTick() {
+    final c = _johnsonCareerCtrl;
+    if (c == null || !c.value.isInitialized) return;
+    final dur = c.value.duration;
+    if (dur == Duration.zero) return;
+    if (c.value.position + const Duration(milliseconds: 100) >= dur) {
+      c.removeListener(_bgOnJohnsonCareerTick);
+      c.pause();
+      unawaited(c.seekTo(Duration.zero));
+      _resumeHeroLoopAfterJohnsonCareer();
+    }
+  }
+
   void _bgOnDoubaoCatTick() {
     final c = _doubaoCatCtrl;
     if (c == null || !c.value.isInitialized) return;
@@ -1289,6 +1900,140 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _volcSkipNextAiOutputs = true;
     _volcCurrentUserText = '';
     _finalizeDoubaoCatEggRound(userText);
+  }
+
+  void _finalizeVolcJohnsonCareerRound(String userText) {
+    _volcSkipNextAiOutputs = true;
+    _volcCurrentUserText = '';
+    _finalizeJohnsonCareerRound(userText);
+  }
+
+  void _finalizeJohnsonChampionRound(String userText) {
+    final text = userText.trim();
+    if (text.isEmpty) return;
+
+    _maybeTriggerJohnsonChampionFromUtterance(text);
+    _sttFinalizeTimer?.cancel();
+    _sttFinalizeTimer = null;
+    _sttSessionBest = '';
+    _thinkingTimer?.cancel();
+
+    var alreadyCompleted = false;
+    _safeSetState(() {
+      _voiceTranscript = '';
+      if (_messages.length >= 2 &&
+          !_messages.last.isUser &&
+          _messages.last.content == _kJohnsonChampionAssistantReply &&
+          _messages[_messages.length - 2].isUser) {
+        alreadyCompleted = true;
+        final lastUser = _messages[_messages.length - 2];
+        _messages[_messages.length - 2] = MessageModel(
+          id: lastUser.id,
+          role: lastUser.role,
+          content: _preferRicherTranscript(lastUser.content, text),
+          voicePlain: lastUser.voicePlain,
+          createdAt: lastUser.createdAt,
+        );
+      } else if (_messages.isNotEmpty && _messages.last.isUser) {
+        final last = _messages.last;
+        _messages[_messages.length - 1] = MessageModel(
+          id: last.id,
+          role: last.role,
+          content: _preferRicherTranscript(last.content, text),
+          voicePlain: last.voicePlain,
+          createdAt: last.createdAt,
+        );
+      } else {
+        _messages.add(MessageModel(
+          role: 'user',
+          content: text,
+          createdAt: DateTime.now(),
+        ));
+      }
+      if (!alreadyCompleted) {
+        _messages.add(MessageModel(
+          role: 'assistant',
+          content: _kJohnsonChampionAssistantReply,
+          createdAt: DateTime.now(),
+        ));
+      }
+      _settledCount = _messages.length;
+    });
+    _scrollToBottom();
+    if (!alreadyCompleted) {
+      HapticFeedback.lightImpact();
+      _emitSavedTurn(text, _kJohnsonChampionAssistantReply);
+      ref.invalidate(conversationsProvider);
+    }
+  }
+
+  void _finalizeJohnsonCareerRound(String userText) {
+    final text = userText.trim();
+    if (text.isEmpty) return;
+
+    _clearAskVideoState();
+
+    _maybeTriggerJohnsonCareerFromUtterance(text);
+    _sttFinalizeTimer?.cancel();
+    _sttFinalizeTimer = null;
+    _sttSessionBest = '';
+    _thinkingTimer?.cancel();
+
+    var alreadyCompleted = false;
+    _safeSetState(() {
+      _voiceTranscript = '';
+      if (_messages.length >= 2 &&
+          !_messages.last.isUser &&
+          _messages.last.content == _kJohnsonCareerAssistantReply &&
+          _messages[_messages.length - 2].isUser) {
+        alreadyCompleted = true;
+        final lastUser = _messages[_messages.length - 2];
+        _messages[_messages.length - 2] = MessageModel(
+          id: lastUser.id,
+          role: lastUser.role,
+          content: _preferRicherTranscript(lastUser.content, text),
+          voicePlain: lastUser.voicePlain,
+          createdAt: lastUser.createdAt,
+        );
+      } else if (_messages.isNotEmpty && _messages.last.isUser) {
+        final last = _messages.last;
+        _messages[_messages.length - 1] = MessageModel(
+          id: last.id,
+          role: last.role,
+          content: _preferRicherTranscript(last.content, text),
+          voicePlain: last.voicePlain,
+          createdAt: last.createdAt,
+        );
+      } else {
+        _messages.add(MessageModel(
+          role: 'user',
+          content: text,
+          createdAt: DateTime.now(),
+        ));
+      }
+      if (!alreadyCompleted) {
+        _messages.add(MessageModel(
+          role: 'assistant',
+          content: _kJohnsonCareerAssistantReply,
+          voicePlain: _kJohnsonCareerAssistantReply,
+          createdAt: DateTime.now(),
+        ));
+      }
+      _isThinking = false;
+      _sdkAiSpeaking = false;
+      _sdkAiBuffer = _kJohnsonCareerAssistantReply;
+      _streamingContent = '';
+      _thinkingContent = '';
+      _settledCount = _messages.length;
+    });
+    _scrollToBottom();
+    if (!alreadyCompleted) {
+      HapticFeedback.lightImpact();
+      _emitSavedTurn(text, _kJohnsonCareerAssistantReply);
+      ref.invalidate(conversationsProvider);
+      _pendingSpeakAssistantReply = true;
+      unawaited(_speakAssistantReplyIfNeeded());
+    }
   }
 
   void _finalizeDoubaoCatEggRound(String userText) {
@@ -1361,6 +2106,26 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     }
   }
 
+  bool get _isJohnsonTravelBuddySelected {
+    final brief = _conversation?.agent;
+    final templateId = brief?.templateId ?? '';
+    final name = brief?.name ?? '';
+    return templateId == 'travel-buddy' ||
+        templateId == 'preview-1' ||
+        name.trim().toLowerCase() == 'johnson' ||
+        (widget.downVideo?.contains('J_GJ.mov') ?? false);
+  }
+
+  bool get _isEricaSelected {
+    final brief = _conversation?.agent;
+    final templateId = brief?.templateId ?? '';
+    final name = brief?.name ?? '';
+    return templateId == 'code-assistant' ||
+        templateId == 'preview-2' ||
+        name.trim().toLowerCase() == 'erica' ||
+        (widget.helloVideo?.contains('ip_Erica') ?? false);
+  }
+
   bool _appearanceOptionIsSelected(_HeroAppearanceOption option) {
     final dir = option.doubaoHeroClipDirectory;
     if (dir != null) {
@@ -1392,6 +2157,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _koreanShakeClipPlaying = false;
       _koreanDanceClipPlaying = false;
       _doubaoCatClipPlaying = false;
+      _johnsonCareerClipPlaying = false;
     });
     await _disposeBgVideoControllers();
     if (!mounted || _disposed) return;
@@ -1473,7 +2239,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     c.removeListener(_bgOnBreatheTick);
     if (mounted) setState(() => _videoPhase = _ChatVideoPhase.breathe);
     await c.seekTo(Duration.zero);
-    if (_selectedHeroVideoAsset == null) {
+    if (_selectedHeroVideoAsset == null && !_heroBreatheLoopsContinuously) {
       c.addListener(_bgOnBreatheTick);
     }
     await c.play();
@@ -1518,6 +2284,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     if (_videoPhase == _ChatVideoPhase.koreanShake) return;
     if (_videoPhase == _ChatVideoPhase.koreanDance) return;
     if (_videoPhase == _ChatVideoPhase.doubaoCat) return;
+    if (_videoPhase == _ChatVideoPhase.johnsonCareer) return;
     // 先在后台 seek + play，等首帧再暂停旧视频，避免切换瞬间白屏
     down.removeListener(_bgOnDownTick);
     await down.seekTo(Duration.zero);
@@ -1573,6 +2340,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         _ChatVideoPhase.koreanShake => _koreanShakeCtrl,
         _ChatVideoPhase.koreanDance => _koreanDanceCtrl,
         _ChatVideoPhase.doubaoCat => _doubaoCatCtrl,
+        _ChatVideoPhase.johnsonCareer => _johnsonCareerCtrl,
+        _ChatVideoPhase.ericaDance => _downCtrl,
+        _ChatVideoPhase.ericaPet => _ericaPetCtrl,
         _ChatVideoPhase.askIntro => _askIntroCtrl,
         _ChatVideoPhase.askLoopAlt => _askLoopAltCtrl,
         _ChatVideoPhase.askLoop => _askLoopCtrl,
@@ -1645,11 +2415,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
   Future<void> _bgBeginAskSpeakingLoop() async {
     try {
       if (!mounted || _selectedHeroVideoAsset != null) return;
+      if (_heroBreatheLoopsContinuously) return;
       if (_useKoreanStylePlayback) {
         _clearAskVideoState();
         return;
       }
       if (_videoPhase == _ChatVideoPhase.doubaoCat || _doubaoCatClipPlaying) {
+        return;
+      }
+      if (_videoPhase == _ChatVideoPhase.johnsonCareer ||
+          _johnsonCareerClipPlaying) {
         return;
       }
       _askVideoEndDebounceTimer?.cancel();
@@ -2336,6 +3111,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       case _ChatVideoPhase.doubaoCat:
         _doubaoCatCtrl?.removeListener(_bgOnDoubaoCatTick);
         _doubaoCatCtrl?.pause();
+      case _ChatVideoPhase.johnsonCareer:
+        _johnsonCareerCtrl?.removeListener(_bgOnJohnsonCareerTick);
+        _johnsonCareerCtrl?.pause();
+      case _ChatVideoPhase.ericaDance:
+        _downCtrl?.removeListener(_bgOnEricaDanceTick);
+        _downCtrl?.pause();
+      case _ChatVideoPhase.ericaPet:
+        _ericaPetCtrl?.removeListener(_bgOnEricaPetTick);
+        _ericaPetCtrl?.pause();
       case _ChatVideoPhase.askIntro:
         _askIntroCtrl?.removeListener(_bgOnAskIntroTick);
         _askIntroCtrl?.pause();
@@ -2360,7 +3144,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _helloCtrl,
       _haitCtrl,
       _breatheCtrl,
-      _downCtrl,
+      // ericaDance 阶段 _downCtrl 正在播原声，不暂停
+      if (_videoPhase != _ChatVideoPhase.ericaDance) _downCtrl,
       _askIntroCtrl,
       _askLoopAltCtrl,
       _askLoopCtrl,
@@ -2368,6 +3153,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _koreanDanceCtrl,
       _koreanShakeCtrl,
       if (_videoPhase != _ChatVideoPhase.doubaoCat) _doubaoCatCtrl,
+      _johnsonCareerCtrl,
     ];
     final anyPlaying = ctrls.any((c) => c?.value.isPlaying ?? false);
     if (!anyPlaying) return;
@@ -2397,6 +3183,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         unawaited(_koreanDanceCtrl?.play());
       case _ChatVideoPhase.doubaoCat:
         unawaited(_doubaoCatCtrl?.play());
+      case _ChatVideoPhase.johnsonCareer:
+        unawaited(_johnsonCareerCtrl?.play());
+      case _ChatVideoPhase.ericaDance:
+        unawaited(_downCtrl?.play());
+      case _ChatVideoPhase.ericaPet:
+        unawaited(_ericaPetCtrl?.play());
       case _ChatVideoPhase.askIntro:
         unawaited(_askIntroCtrl?.play());
       case _ChatVideoPhase.askLoopAlt:
@@ -2784,8 +3576,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           _finalizeVolcDoubaoCatEggRound(text);
           break;
         }
+        if (_isJohnsonCareerRequest(text)) {
+          _finalizeVolcJohnsonCareerRound(text);
+          break;
+        }
+        if (_isJohnsonChampionRequest(text)) {
+          _finalizeJohnsonChampionRound(text);
+          break;
+        }
         if (_isKoreanDanceRequest(text)) {
           _finalizeVolcKoreanDanceHaoyaRound(text);
+          break;
+        }
+        if (_isEricaDanceRequest(text)) {
+          _finalizeVolcEricaDanceRound(text);
+          break;
+        }
+        if (_isEricaPetRequest(text)) {
+          _finalizeEricaPetRound(text);
           break;
         }
         _resetVolcSpeechEstimate();
@@ -3039,6 +3847,22 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       return;
     }
 
+    if (_isJohnsonCareerRequest(text)) {
+      _stopListeningIfActive();
+      unawaited(_stopAssistantSpeech());
+      _finalizeJohnsonCareerRound(text);
+      _messageController.clear();
+      return;
+    }
+
+    if (_isJohnsonChampionRequest(text)) {
+      _stopListeningIfActive();
+      unawaited(_stopAssistantSpeech());
+      _finalizeJohnsonChampionRound(text);
+      _messageController.clear();
+      return;
+    }
+
     if (_isKoreanDanceRequest(text)) {
       _stopListeningIfActive();
       unawaited(_stopAssistantSpeech());
@@ -3046,6 +3870,22 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
         text,
         speakAssistantReply: speakAssistantReply,
       );
+      _messageController.clear();
+      return;
+    }
+
+    if (_isEricaDanceRequest(text)) {
+      _stopListeningIfActive();
+      unawaited(_stopAssistantSpeech());
+      _finalizeEricaDanceRound(text);
+      _messageController.clear();
+      return;
+    }
+
+    if (_isEricaPetRequest(text)) {
+      _stopListeningIfActive();
+      unawaited(_stopAssistantSpeech());
+      _finalizeEricaPetRound(text);
       _messageController.clear();
       return;
     }
@@ -3117,6 +3957,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     _koreanDanceCtrl?.dispose();
     _doubaoCatCtrl?.removeListener(_bgOnDoubaoCatTick);
     _doubaoCatCtrl?.dispose();
+    _johnsonCareerCtrl?.removeListener(_bgOnJohnsonCareerTick);
+    _johnsonCareerCtrl?.dispose();
+    _ericaPetCtrl?.removeListener(_bgOnEricaPetTick);
+    _ericaPetCtrl?.dispose();
     unawaited(_stt.stop());
     unawaited(_stopAssistantSpeech());
     unawaited(_voiceBridgeSub?.cancel());
@@ -3477,6 +4321,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                         _ChatVideoPhase.koreanShake => _koreanShakeCtrl,
                         _ChatVideoPhase.koreanDance => _koreanDanceCtrl,
                         _ChatVideoPhase.doubaoCat => _doubaoCatCtrl,
+                        _ChatVideoPhase.johnsonCareer => _johnsonCareerCtrl,
+                        _ChatVideoPhase.ericaDance => _downCtrl,
+                        _ChatVideoPhase.ericaPet => _ericaPetCtrl,
                         _ChatVideoPhase.askIntro => _askIntroCtrl,
                         _ChatVideoPhase.askLoopAlt => _askLoopAltCtrl,
                         _ChatVideoPhase.askLoop => _askLoopCtrl,
@@ -3582,7 +4429,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
                           fit: StackFit.expand,
                           children: [
                             // 热区在下层：全宽条带，列表/沉浸内容在上层
-                            if (_kShowChatHeroVideo && _videoReady)
+                            // johnson / erica 不需要点击交互，跳过热区
+                            if (_kShowChatHeroVideo &&
+                                _videoReady &&
+                                !_isJohnsonTravelBuddySelected &&
+                                !_isEricaSelected)
                               Positioned(
                                 left: 0,
                                 right: 0,
@@ -3809,14 +4660,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text(
-                  '豆包',
-                  style: TextStyle(
+                Text(
+                  _topBarAgentTitle(agent),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: _ChatLight.titleText,
                     letterSpacing: -0.2,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(width: 8),
                 _OnlineDot(status: _connUi),
@@ -3886,6 +4738,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       _koreanShakeCtrl,
       _koreanDanceCtrl,
       _doubaoCatCtrl,
+      _johnsonCareerCtrl,
       _askLoopAltCtrl,
       _askLoopCtrl,
       _askIntroCtrl,

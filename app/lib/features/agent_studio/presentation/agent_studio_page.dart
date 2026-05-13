@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -11,20 +13,12 @@ import 'package:starpath/features/agent_studio/data/agent_template_categories.da
 import 'package:starpath/features/agent_studio/data/pet_template.dart';
 import 'package:starpath/features/agent_studio/domain/agent_model.dart';
 
-Color _hexColor(String hex) {
-  hex = hex.replaceFirst('#', '');
-  return Color(int.parse('FF$hex', radix: 16));
-}
-
 /// AI 伙伴页浅色界面（与全局深色 [StarpathColors] 隔离）
 abstract final class _PartnerLight {
-  static const Color scaffold = Color(0xFFF7F7FA);
+  static const Color scaffold = Color(0xFFF6F6FA);
   static const Color spotlightCard = Color(0xFFFFFFFF);
   static const Color titleText = Color(0xFF14141A);
   static const Color subtitleText = Color(0xFF636370);
-  static const Color divider = Color(0xFFE4E4EA);
-  static const Color chipIdleBg = Color(0xFFEFEFF4);
-  static const Color chipIdleBorder = Color(0xFFDCDCE4);
   static const LinearGradient bottomScrim = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -67,20 +61,28 @@ const List<String> kAgentCoverImages = [
 String agentCoverImageByIndex(int index) =>
     kAgentCoverImages[index % kAgentCoverImages.length];
 
-/// Spotlight 角色破框上移量；页眉副标题间距与之对齐以便与兔耳同高。
-const double _kSpotlightTopBleed = 42.0;
-/// 立绘相对卡片竖直偏移（破框上移）；副标题用 Stack 叠在上层，可与视频同值。
-const double _kSpotlightMediaNudgeY = -100.0;
+/// Spotlight 角色破框上移量；必须 >= |_kSpotlightMediaNudgeY| 避免 Clip.hardEdge 截断视频顶部。
+const double _kSpotlightTopBleed = 40.0;
+
+/// 立绘相对卡片竖直偏移（破框上移）；保持 < bleed 留有缓冲（40 - 32 = 8px）。
+const double _kSpotlightMediaNudgeY = -32.0;
+
 /// 在比例算出高度基础上额外加高（主 Spotlight 卡片可视区）
-const double _kSpotlightCardHeightExtra = 100.0;
+const double _kSpotlightCardHeightExtra = 172.0;
+
 /// Spotlight 横滑整块相对布局竖直偏移（负上移、正下移）
-const double _kSpotlightSectionOffsetY = 20.0;
+const double _kSpotlightSectionOffsetY = -12.0;
+
 /// Spotlight 左右切换按钮距屏幕边缘
-const double _kSpotlightNavEdgeInset = 10.0;
+const double _kSpotlightNavEdgeInset = 36.0;
+
 /// Spotlight 切换按钮尺寸
-const double _kSpotlightNavButtonSize = 44.0;
+const double _kSpotlightNavButtonSize = 40.0;
+
 /// 主卡底部（含 CHAT）到「更多 ai 伙伴」分割线的垂直间距
-const double _kSpotlightChatToDividerGap = 60.0;
+/// 视觉公式：SizedBox − translateOffset + dotsBottomPad(10) + chipTopPad(16) = 视觉间距
+const double _kSpotlightChatToDividerGap = 12.0;
+
 /// Spotlight 大卡底部「Chat」按钮：左蓝右紫，与顶部创建按钮区分层次
 const LinearGradient _kSpotlightChatButtonGradient = LinearGradient(
   begin: Alignment.centerLeft,
@@ -117,8 +119,8 @@ class _AgentCoverImage extends StatelessWidget {
 /// Spotlight 卡片数据适配层 — 将 PetTemplate 转成 Spotlight 所需字段。
 /// 直接取 kSpotlightTemplates（过滤掉无视频的模板），顺序与模板列表一致。
 class _SpotlightCommunity {
-  final String ipName;       // 卡片大标题（= PetTemplate.displayName）
-  final String personality;  // 副标题（= PetTemplate.cardSubtitle）
+  final String ipName; // 卡片大标题（= PetTemplate.displayName）
+  final String personality; // 副标题（= PetTemplate.cardSubtitle）
   final String tag;
   final String agentId;
   final String? helloVideo;
@@ -139,20 +141,28 @@ class _SpotlightCommunity {
 
   factory _SpotlightCommunity.fromTemplate(PetTemplate t) =>
       _SpotlightCommunity(
-        ipName:      t.displayName,
+        ipName: t.displayName,
         personality: t.cardSubtitle,
-        tag:         t.tag,
-        agentId:     t.id,
-        helloVideo:   t.helloVideo,
-        haitVideo:    t.haitVideo,
+        tag: t.tag,
+        agentId: t.id,
+        helloVideo: t.helloVideo,
+        haitVideo: t.haitVideo,
         breatheVideo: t.breatheVideo,
-        downVideo:    t.downVideo,
+        downVideo: t.downVideo,
       );
 }
 
 /// Spotlight 卡片列表 — 从 PetTemplate 统一数据源生成，卡片名与语音人设完全对齐。
 final List<_SpotlightCommunity> _kSpotlightCommunities =
     kSpotlightTemplates.map(_SpotlightCommunity.fromTemplate).toList();
+const List<String> _kSpotlightDisplayNames = ['豆包', 'Johnson', 'Erica'];
+
+String _spotlightDisplayName(_SpotlightCommunity data, int index) {
+  if (index < _kSpotlightDisplayNames.length) {
+    return _kSpotlightDisplayNames[index];
+  }
+  return data.ipName;
+}
 
 class AgentStudioPage extends ConsumerStatefulWidget {
   const AgentStudioPage({super.key});
@@ -193,48 +203,69 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
     required bool isPrev,
     required bool enabled,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled
-            ? () {
-                HapticFeedback.selectionClick();
-                final i = _spotlightPageIndex;
-                if (isPrev) {
-                  if (i > 0) _spotlightGoToPage(i - 1);
-                } else {
-                  if (i < _kSpotlightCommunities.length - 1) {
-                    _spotlightGoToPage(i + 1);
-                  }
-                }
-              }
-            : null,
-        customBorder: const CircleBorder(),
-        child: Opacity(
-          opacity: enabled ? 1 : 0.35,
-          child: Container(
-            width: _kSpotlightNavButtonSize,
-            height: _kSpotlightNavButtonSize,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.94),
-              border: Border.all(
-                color: const Color(0x26000000),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.28,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB9A7D8).withValues(alpha: 0.18),
+              blurRadius: 24,
+              spreadRadius: -8,
+              offset: const Offset(0, 10),
             ),
-            child: Icon(
-              isPrev ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-              size: 28,
-              color: const Color(0xFF3C3C48),
+          ],
+        ),
+        child: ClipOval(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: enabled
+                    ? () {
+                        HapticFeedback.selectionClick();
+                        final i = _spotlightPageIndex;
+                        if (isPrev) {
+                          if (i > 0) _spotlightGoToPage(i - 1);
+                        } else {
+                          if (i < _kSpotlightCommunities.length - 1) {
+                            _spotlightGoToPage(i + 1);
+                          }
+                        }
+                      }
+                    : null,
+                customBorder: const CircleBorder(),
+                splashColor: Colors.white.withValues(alpha: 0.18),
+                highlightColor: Colors.white.withValues(alpha: 0.10),
+                child: Ink(
+                  width: _kSpotlightNavButtonSize,
+                  height: _kSpotlightNavButtonSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.92),
+                        Colors.white.withValues(alpha: 0.70),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.88),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    isPrev
+                        ? Icons.chevron_left_rounded
+                        : Icons.chevron_right_rounded,
+                    size: 26,
+                    color: const Color(0xFF3C3C52),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -285,14 +316,14 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
         else
           SliverPadding(
             key: ValueKey(_chipIndex),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: 14,
+                mainAxisSpacing: 16,
                 crossAxisSpacing: 14,
                 // 略增高以容纳「副标题 + 性格标签」两行说明
-                mainAxisExtent: 302,
+                mainAxisExtent: 286,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, i) => _AgentCard(
@@ -303,7 +334,11 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
               ),
             ),
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: MediaQuery.paddingOf(context).bottom + 112,
+          ),
+        ),
       ],
     );
   }
@@ -321,77 +356,95 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
       child: Scaffold(
         backgroundColor: _PartnerLight.scaffold,
         // 「更多 ai 伙伴」固定预设卡与人设，与 pet_template 对齐，不随后端列表变化。
-        body: _buildScrollView(_fixedMoreAgents),
+        body: Stack(
+          children: [
+            const Positioned.fill(child: _PartnerGradientBackground()),
+            _buildScrollView(_fixedMoreAgents),
+          ],
+        ),
       ),
     );
   }
 
   Widget _headerSliver() {
     final top = MediaQuery.paddingOf(context).top;
-    final titleStyle = Theme.of(context).textTheme.headlineMedium;
-    final titleSize = (titleStyle?.fontSize ?? 28) + 8;
     return SliverToBoxAdapter(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(20, top + 16, 20, 8),
+        padding: EdgeInsets.fromLTRB(18, top + 10, 18, 4),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: Text(
-                '我的 AI 伙伴',
-                style: titleStyle?.copyWith(
-                      fontSize: titleSize,
-                      fontWeight: FontWeight.w800,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '我的 AI 伙伴',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontSize: 31,
+                      fontWeight: FontWeight.w900,
                       color: _PartnerLight.titleText,
-                      height: 1.1,
-                    ) ??
-                    TextStyle(
-                      fontSize: titleSize,
-                      fontWeight: FontWeight.w800,
-                      color: _PartnerLight.titleText,
-                      height: 1.1,
+                      height: 1.08,
+                      letterSpacing: 0,
+                      fontFamilyFallback: const [
+                        StarpathTheme.chineseDisplayFont,
+                      ],
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '选择一个伙伴，开始今天的对话',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 12,
+                          color: _PartnerLight.subtitleText,
+                          height: 1.2,
+                        ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 4),
-            GestureDetector(
-              onTap: _openCreate,
-              child: Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  gradient: StarpathColors.blueVioletCtaGradient,
-                  borderRadius: BorderRadius.circular(100),
-                  boxShadow: [
-                    BoxShadow(
-                      color: StarpathColors.accentIndigo.withValues(alpha: 0.28),
-                      blurRadius: 14,
-                      spreadRadius: -2,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.add_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      '创建伙伴',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        height: 1,
+            const SizedBox(width: 12),
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                onTap: _openCreate,
+                borderRadius: BorderRadius.circular(24),
+                child: Ink(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    color: Colors.white.withValues(alpha: 0.78),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFB9A7D8).withValues(alpha: 0.20),
+                        blurRadius: 28,
+                        spreadRadius: -12,
+                        offset: const Offset(0, 14),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.add_rounded,
+                        size: 20,
+                        color: Color(0xFF4D55D8),
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        '创建',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF3C3455),
+                          height: 1,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -408,74 +461,110 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
           // 用逻辑屏宽，保证卡片铺满左右
           final cardWidth = MediaQuery.sizeOf(context).width;
           final media = MediaQuery.of(context);
-          final safeH = media.size.height - media.padding.top;
-          final cardHeight = (safeH * 0.58 - 72.0).clamp(320.0, 480.0) +
+          final safeH =
+              media.size.height - media.padding.top - media.padding.bottom;
+          final cardHeight = (safeH * 0.56 - 44.0).clamp(330.0, 500.0) +
               _kSpotlightCardHeightExtra;
           return Transform.translate(
             offset: const Offset(0, _kSpotlightSectionOffsetY),
-            child: SizedBox(
-              height: cardHeight +
-                  _kSpotlightTopBleed +
-                  _kSpotlightChatToDividerGap,
-              child: Padding(
-                // 留出底部 chat-to-divider 间距，内容区与分割线保持一致
-                padding:
-                    const EdgeInsets.only(bottom: _kSpotlightChatToDividerGap),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    PageView.builder(
-                      controller: _spotlightPageController,
-                      clipBehavior: Clip.none,
-                      physics: const PageScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      itemCount: _kSpotlightCommunities.length,
-                      onPageChanged: (i) {
-                        setState(() => _spotlightPageIndex = i);
-                      },
-                      itemBuilder: (context, i) {
-                        return _SpotlightCommunityCard(
-                          data: _kSpotlightCommunities[i],
-                          imageAsset: agentCoverImageByIndex(i),
-                          width: cardWidth,
-                          height: cardHeight,
-                          topBleed: _kSpotlightTopBleed,
-                        );
-                      },
-                    ),
-                    // 两侧切换（位于立绘区域垂直居中，不挡底部文案与 CHAT）
-                    Positioned.fill(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          _kSpotlightNavEdgeInset,
-                          8,
-                          _kSpotlightNavEdgeInset,
-                          cardHeight * 0.38 + 8,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── 卡片主体 ──────────────────────────────────────────
+                SizedBox(
+                  height: cardHeight + _kSpotlightTopBleed,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      PageView.builder(
+                        controller: _spotlightPageController,
+                        clipBehavior: Clip.none,
+                        physics: const PageScrollPhysics(
+                          parent: BouncingScrollPhysics(),
                         ),
-                        child: Transform.translate(
-                          offset: const Offset(0, 40),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _spotlightSideNavButton(
-                                isPrev: true,
-                                enabled: _spotlightPageIndex > 0,
-                              ),
-                              _spotlightSideNavButton(
-                                isPrev: false,
-                                enabled: _spotlightPageIndex <
-                                    _kSpotlightCommunities.length - 1,
-                              ),
-                            ],
+                        itemCount: _kSpotlightCommunities.length,
+                        onPageChanged: (i) {
+                          setState(() => _spotlightPageIndex = i);
+                        },
+                        itemBuilder: (context, i) {
+                          return Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 18),
+                            child: _SpotlightCommunityCard(
+                              data: _kSpotlightCommunities[i],
+                              displayName: _spotlightDisplayName(
+                                  _kSpotlightCommunities[i], i),
+                              imageAsset: agentCoverImageByIndex(i),
+                              width: cardWidth - 36,
+                              height: cardHeight,
+                              topBleed: _kSpotlightTopBleed,
+                            ),
+                          );
+                        },
+                      ),
+                      // 两侧切换（位于立绘区域垂直居中，不挡底部文案与 CHAT）
+                      Positioned.fill(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            _kSpotlightNavEdgeInset,
+                            8,
+                            _kSpotlightNavEdgeInset,
+                            cardHeight * 0.38 + 8,
+                          ),
+                          child: Transform.translate(
+                            offset: const Offset(0, 28),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                _spotlightSideNavButton(
+                                  isPrev: true,
+                                  enabled: _spotlightPageIndex > 0,
+                                ),
+                                _spotlightSideNavButton(
+                                  isPrev: false,
+                                  enabled: _spotlightPageIndex <
+                                      _kSpotlightCommunities.length - 1,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                // ── 卡片下方：分页指示点 ──────────────────────────────
+                if (_kSpotlightCommunities.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 28, bottom: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _kSpotlightCommunities.length,
+                        (i) {
+                          final active = i == _spotlightPageIndex;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeOutCubic,
+                            margin:
+                                const EdgeInsets.symmetric(horizontal: 3),
+                            width: active ? 20.0 : 6.0,
+                            height: 6.0,
+                            decoration: BoxDecoration(
+                              color: active
+                                  ? const Color(0xFF5B5CFF)
+                                  : const Color(0xFFCDCBE8),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                // 与「更多 ai 伙伴」分割线之间保持间距
+                const SizedBox(height: _kSpotlightChatToDividerGap),
+              ],
             ),
           );
         },
@@ -489,17 +578,7 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 12, 0),
-            child: SizedBox(
-              height: 1,
-              width: double.infinity,
-              child: ColoredBox(
-                color: _PartnerLight.divider,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+            padding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -507,9 +586,13 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
                   child: Text(
                     '更多ai伙伴',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: _PartnerLight.titleText,
-                        ),
+                      fontSize: 23,
+                      fontWeight: FontWeight.w800,
+                      color: _PartnerLight.titleText,
+                      fontFamilyFallback: const [
+                        StarpathTheme.chineseDisplayFont,
+                      ],
+                    ),
                   ),
                 ),
                 GestureDetector(
@@ -542,12 +625,12 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           SizedBox(
-            height: 46,
+            height: 42,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(20, 2, 20, 2),
+              padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
               itemCount: _chipLabels.length,
               itemBuilder: (context, i) {
                 final selected = i == _chipIndex;
@@ -564,24 +647,19 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
                             selected ? StarpathColors.selectedGradient : null,
                         color: selected
                             ? null
-                            : _PartnerLight.chipIdleBg,
+                            : Colors.white.withValues(alpha: 0.62),
                         borderRadius: BorderRadius.circular(100),
-                        border: selected
-                            ? null
-                            : Border.all(
-                                color: _PartnerLight.chipIdleBorder,
-                                width: 0.8,
-                              ),
-                        boxShadow: selected
-                            ? [
-                                BoxShadow(
-                                  color: StarpathColors.accentViolet
-                                      .withValues(alpha: 0.38),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ]
-                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (selected
+                                    ? StarpathColors.accentViolet
+                                    : const Color(0xFFB9A7D8))
+                                .withValues(alpha: selected ? 0.34 : 0.12),
+                            blurRadius: selected ? 14 : 18,
+                            spreadRadius: selected ? -2 : -10,
+                            offset: Offset(0, selected ? 4 : 10),
+                          ),
+                        ],
                       ),
                       child: Text(
                         _chipLabels[i],
@@ -641,6 +719,29 @@ class _AgentStudioPageState extends ConsumerState<AgentStudioPage> {
   }
 }
 
+class _PartnerGradientBackground extends StatelessWidget {
+  const _PartnerGradientBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            const Color(0xFFF9FAFF).withValues(alpha: 0.98),
+            const Color(0xFFF1F0FF).withValues(alpha: 0.92),
+            const Color(0xFFF9F7FF).withValues(alpha: 0.96),
+            const Color(0xFFFDF6E6).withValues(alpha: 0.90),
+          ],
+          stops: const [0.0, 0.34, 0.68, 1.0],
+        ),
+      ),
+    );
+  }
+}
+
 /// 将子树以 [BlendMode.screen] 与下层已绘制内容做滤色合成，不叠加任何额外颜色层。
 class _SpotlightScreenBlend extends SingleChildRenderObjectWidget {
   const _SpotlightScreenBlend({super.child});
@@ -662,9 +763,9 @@ class _RenderSpotlightScreenBlend extends RenderProxyBox {
   }
 }
 
-
 class _SpotlightCommunityCard extends StatefulWidget {
   final _SpotlightCommunity data;
+  final String displayName;
   final String imageAsset;
   final double width;
   final double height;
@@ -672,6 +773,7 @@ class _SpotlightCommunityCard extends StatefulWidget {
 
   const _SpotlightCommunityCard({
     required this.data,
+    required this.displayName,
     required this.imageAsset,
     required this.width,
     required this.height,
@@ -699,19 +801,82 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
       ? VideoPlayerController.networkUrl(Uri.parse('assets/$asset'))
       : VideoPlayerController.asset(asset);
 
+  void _openChat() {
+    HapticFeedback.selectionClick();
+    final d = widget.data;
+    final uri = Uri(
+      path: '/chat/agent/${d.agentId}',
+      queryParameters: {
+        'agentName': widget.displayName,
+        if (d.helloVideo != null) 'helloVideo': d.helloVideo!,
+        if (d.haitVideo != null) 'haitVideo': d.haitVideo!,
+        if (d.breatheVideo != null) 'breatheVideo': d.breatheVideo!,
+        if (d.downVideo != null) 'downVideo': d.downVideo!,
+      },
+    );
+    context.push(uri.toString());
+  }
+
   @override
   void initState() {
     super.initState();
     _initAll();
   }
 
+  /// 与聊天页 [chat_detail_page] 的格式优先级一致：Android 先试 `.webm`，避免 HEVC `.mov` 解码失败。
+  List<String> _spotlightAssetFormatCandidates(String? fullPath) {
+    final t = fullPath?.trim();
+    if (t == null || t.isEmpty) return const [];
+    final q = t.lastIndexOf('.');
+    final base = q > 0 ? t.substring(0, q) : t;
+    if (kIsWeb) {
+      return ['$base.mov', '$base.mp4', '$base.webm'];
+    }
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return ['$base.webm', '$base.mp4', '$base.mov'];
+    }
+    return ['$base.mov', '$base.mp4', '$base.webm'];
+  }
+
+  Future<VideoPlayerController?> _initCtrlTryCandidates(
+    List<String> candidates, {
+    required bool loop,
+    bool autoPlay = false,
+  }) async {
+    for (final asset in candidates) {
+      final c = await _initCtrl(asset, loop: loop, autoPlay: autoPlay);
+      if (c != null) return c;
+    }
+    return null;
+  }
+
   Future<void> _initAll() async {
     final d = widget.data;
     await Future.wait([
-      if (d.helloVideo   != null) _initCtrl(d.helloVideo!,   loop: false).then((c) { _helloCtrl   = c; }),
-      if (d.haitVideo    != null) _initCtrl(d.haitVideo!,    loop: false, autoPlay: false).then((c) { _haitCtrl    = c; }),
-      if (d.breatheVideo != null) _initCtrl(d.breatheVideo!, loop: true,  autoPlay: false).then((c) { _breatheCtrl = c; }),
-      if (d.downVideo    != null) _initCtrl(d.downVideo!,    loop: false, autoPlay: false).then((c) { _downCtrl    = c; }),
+      if (d.helloVideo != null)
+        _initCtrlTryCandidates(_spotlightAssetFormatCandidates(d.helloVideo),
+                loop: false)
+            .then((c) {
+          _helloCtrl = c;
+        }),
+      if (d.haitVideo != null)
+        _initCtrlTryCandidates(_spotlightAssetFormatCandidates(d.haitVideo),
+                loop: false, autoPlay: false)
+            .then((c) {
+          _haitCtrl = c;
+        }),
+      if (d.breatheVideo != null)
+        _initCtrlTryCandidates(_spotlightAssetFormatCandidates(d.breatheVideo),
+                loop: true, autoPlay: false)
+            .then((c) {
+          _breatheCtrl = c;
+        }),
+      if (d.downVideo != null)
+        _initCtrlTryCandidates(_spotlightAssetFormatCandidates(d.downVideo),
+                loop: false, autoPlay: false)
+            .then((c) {
+          _downCtrl = c;
+        }),
     ]);
     if (!mounted) return;
     _beginHello();
@@ -725,7 +890,10 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
     final c = _makeCtrl(asset);
     try {
       await c.initialize();
-      if (!mounted) { await c.dispose(); return null; }
+      if (!mounted) {
+        await c.dispose();
+        return null;
+      }
       await c.setLooping(loop);
       await c.setVolume(0);
       if (autoPlay) await c.play();
@@ -822,10 +990,16 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
     HapticFeedback.lightImpact();
     // 暂停当前正在播放的阶段
     switch (_phase) {
-      case _VideoPhase.hello:   _helloCtrl?.removeListener(_onHelloTick);   _helloCtrl?.pause();
-      case _VideoPhase.hait:    _haitCtrl?.removeListener(_onHaitTick);     _haitCtrl?.pause();
-      case _VideoPhase.breathe: _breatheCtrl?.pause();
-      case _VideoPhase.down:    break;
+      case _VideoPhase.hello:
+        _helloCtrl?.removeListener(_onHelloTick);
+        _helloCtrl?.pause();
+      case _VideoPhase.hait:
+        _haitCtrl?.removeListener(_onHaitTick);
+        _haitCtrl?.pause();
+      case _VideoPhase.breathe:
+        _breatheCtrl?.pause();
+      case _VideoPhase.down:
+        break;
     }
     down.seekTo(Duration.zero).then((_) {
       if (!mounted) return;
@@ -847,7 +1021,6 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
     super.dispose();
   }
 
-
   /// 构建视频层：铺满父级约束宽度，高度由 Positioned 决定，消除 Center 引起的横向偏移。
   Widget _buildVideoDisplay() {
     final d = widget.data;
@@ -866,10 +1039,10 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
     }
 
     final VideoPlayerController? activeCtrl = switch (_phase) {
-      _VideoPhase.hello   => _helloCtrl,
-      _VideoPhase.hait    => _haitCtrl,
+      _VideoPhase.hello => _helloCtrl,
+      _VideoPhase.hait => _haitCtrl,
       _VideoPhase.breathe => _breatheCtrl,
-      _VideoPhase.down    => _downCtrl,
+      _VideoPhase.down => _downCtrl,
     };
 
     // 视频未就绪时显示透明空白（与卡片底色融合），避免闪出 PNG 封面图
@@ -885,7 +1058,8 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
     final videoWidget = ClipRect(
       child: FittedBox(
         fit: BoxFit.cover,
-        alignment: Alignment.bottomCenter,
+        // 偏上对齐：保留更多角色头部区域，-0.3 约减少顶部裁切 60%
+        alignment: const Alignment(0, -0.3),
         child: SizedBox(
           width: sz.width,
           height: sz.height,
@@ -897,7 +1071,9 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
     final skipScreenBlend =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     return IgnorePointer(
-      child: skipScreenBlend ? videoWidget : _SpotlightScreenBlend(child: videoWidget),
+      child: skipScreenBlend
+          ? videoWidget
+          : _SpotlightScreenBlend(child: videoWidget),
     );
   }
 
@@ -911,147 +1087,147 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
     return SizedBox(
       width: w,
       height: h + bleed,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Spotlight 主区域：圆角纯色卡片底（与页面 surface 一致）
-            Positioned(
-              left: 0,
-              right: 0,
-              top: bleed,
-              bottom: 0,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  color: _PartnerLight.spotlightCard,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.07),
-                      blurRadius: 28,
-                      spreadRadius: -4,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          // Spotlight 主区域：圆角纯色卡片底（无投影）
+          Positioned(
+            left: 0,
+            right: 0,
+            top: bleed,
+            bottom: 0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                color: _PartnerLight.spotlightCard,
               ),
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: bleed,
-              bottom: 0,
-              child: Stack(
-                clipBehavior: Clip.none,
-                fit: StackFit.expand,
-                children: [
-                  // 视频：用 Positioned 钉满左右，消除 Center 引起的横向留白
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: bleed,
+            bottom: 0,
+            child: Stack(
+              clipBehavior: Clip.none,
+              fit: StackFit.expand,
+              children: [
+                // 视频：用 Positioned 钉满左右，消除 Center 引起的横向留白
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: _kSpotlightMediaNudgeY,
+                  bottom: -_kSpotlightMediaNudgeY,
+                  child: _buildVideoDisplay(),
+                ),
+                // 角色热区：透明覆盖上半区域，专门拦截角色点击
+                if (d.downVideo != null)
                   Positioned(
                     left: 0,
                     right: 0,
-                    top: _kSpotlightMediaNudgeY,
-                    bottom: -_kSpotlightMediaNudgeY,
-                    child: _buildVideoDisplay(),
-                  ),
-                  // 角色热区：透明覆盖上半区域，专门拦截角色点击
-                  if (d.downVideo != null)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      top: 0,
-                      bottom: h * 0.42,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: _handleVideoTap,
-                        child: const SizedBox.expand(),
-                      ),
-                    ),
-                  // 底部标题区
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                      child: GestureDetector(
+                    top: 0,
+                    bottom: h * 0.42,
+                    child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        final uri = Uri(
-                          path: '/chat/agent/${d.agentId}',
-                          queryParameters: {
-                            'agentName': d.ipName,
-                            if (d.helloVideo   != null) 'helloVideo':   d.helloVideo!,
-                            if (d.haitVideo    != null) 'haitVideo':    d.haitVideo!,
-                            if (d.breatheVideo != null) 'breatheVideo': d.breatheVideo!,
-                            if (d.downVideo    != null) 'downVideo':    d.downVideo!,
-                          },
-                        );
-                        context.push(uri.toString());
-                      },
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(24),
-                        ),
-                        child: Stack(
-                          alignment: Alignment.bottomCenter,
-                          fit: StackFit.loose,
-                          children: [
-                            const Positioned.fill(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: _PartnerLight.bottomScrim,
+                      onTap: _handleVideoTap,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                // 底部标题区
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _openChat,
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(28),
+                      ),
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        fit: StackFit.loose,
+                        children: [
+                          // 更深、更宽的底部磨砂渐变（top:-20 使渐变起点上移 20px）
+                          Positioned(
+                            top: -20,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                // 多 stop 近似三次缓动，消除 iOS Metal 线性插值色带
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.00),
+                                    Colors.white.withValues(alpha: 0.03),
+                                    Colors.white.withValues(alpha: 0.10),
+                                    Colors.white.withValues(alpha: 0.24),
+                                    Colors.white.withValues(alpha: 0.44),
+                                    Colors.white.withValues(alpha: 0.66),
+                                    Colors.white.withValues(alpha: 0.84),
+                                    Colors.white.withValues(alpha: 0.95),
+                                    Colors.white,
+                                  ],
+                                  stops: const [
+                                    0.00,
+                                    0.07,
+                                    0.15,
+                                    0.26,
+                                    0.38,
+                                    0.52,
+                                    0.66,
+                                    0.82,
+                                    1.00,
+                                  ],
                                 ),
                               ),
                             ),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(18, 8, 18, 10),
-                              child: Column(
+                          ),
+                          Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(18, 70, 18, 32),
+                            child: Column(
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
+                                // 名字
                                 Text(
-                                  d.ipName,
+                                  widget.displayName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
-                                    fontSize: 22,
+                                    fontSize: 24,
                                     fontWeight: FontWeight.w800,
                                     color: _PartnerLight.titleText,
-                                    height: 1.2,
-                                    letterSpacing: -0.3,
+                                    height: 1.15,
+                                    letterSpacing: -0.4,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
+                                // 副标题（最多 2 行）
                                 Text(
                                   d.personality,
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    height: 1.4,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    height: 1.5,
                                     color: _PartnerLight.subtitleText,
                                   ),
                                 ),
-                                const SizedBox(height: 26),
+                                const SizedBox(height: 14),
+                                // CHAT 按钮
                                 GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    final uri = Uri(
-                                      path: '/chat/agent/${d.agentId}',
-                                      queryParameters: {
-                                        'agentName': d.ipName,
-                                        if (d.helloVideo   != null) 'helloVideo':   d.helloVideo!,
-                                        if (d.haitVideo    != null) 'haitVideo':    d.haitVideo!,
-                                        if (d.breatheVideo != null) 'breatheVideo': d.breatheVideo!,
-                                        if (d.downVideo    != null) 'downVideo':    d.downVideo!,
-                                      },
-                                    );
-                                    context.push(uri.toString());
-                                  },
+                                  onTap: _openChat,
                                   child: Container(
-                                    width: 180,
-                                    height: 46,
+                                    width: 200,
+                                    height: 50,
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       gradient: _kSpotlightChatButtonGradient,
@@ -1060,37 +1236,27 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
                                       boxShadow: [
                                         BoxShadow(
                                           color: const Color(0xFF5B6CFF)
-                                              .withValues(alpha: 0.38),
-                                          blurRadius: 20,
-                                          spreadRadius: -1,
-                                          offset: const Offset(0, 9),
+                                              .withValues(alpha: 0.42),
+                                          blurRadius: 22,
+                                          spreadRadius: -2,
+                                          offset: const Offset(0, 10),
                                         ),
                                         BoxShadow(
                                           color: const Color(0xFF8B4DFF)
-                                              .withValues(alpha: 0.26),
-                                          blurRadius: 28,
-                                          spreadRadius: -4,
-                                          offset: const Offset(0, 13),
+                                              .withValues(alpha: 0.28),
+                                          blurRadius: 32,
+                                          spreadRadius: -6,
+                                          offset: const Offset(0, 16),
                                         ),
                                       ],
                                     ),
                                     child: const Row(
                                       mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
                                       children: [
-                                        SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.mic_rounded,
-                                              size: 20,
-                                              color: Colors.white,
-                                            ),
-                                          ),
+                                        Icon(
+                                          Icons.mic_rounded,
+                                          size: 20,
+                                          color: Colors.white,
                                         ),
                                         SizedBox(width: 8),
                                         Text(
@@ -1100,7 +1266,7 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
                                             fontWeight: FontWeight.w700,
                                             color: Colors.white,
                                             height: 1,
-                                            letterSpacing: 0.85,
+                                            letterSpacing: 1.0,
                                           ),
                                         ),
                                       ],
@@ -1113,13 +1279,13 @@ class _SpotlightCommunityCardState extends State<_SpotlightCommunityCard> {
                         ],
                       ),
                     ),
-                    ),
-                    ),
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1155,20 +1321,12 @@ class _AgentCardState extends ConsumerState<_AgentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final gradEnd = _hexColor(widget.agent.gradientEnd);
     final tmpl = templateById(widget.agent.id);
-    final topLabel = categoryForTemplateId(widget.agent.templateId) ??
-        (widget.agent.personality.isNotEmpty
-            ? widget.agent.personality.first
-            : '自定义');
     final cardTitle = tmpl?.displayName ?? widget.agent.name;
     final cardBio = tmpl?.cardSubtitle ??
         (widget.agent.bio.isNotEmpty
             ? widget.agent.bio
             : widget.agent.personality.join(' · '));
-    final traitsLine =
-        (tmpl?.traits ?? widget.agent.personality).join(' · ');
-
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressing = true),
       onTapUp: (_) {
@@ -1182,104 +1340,38 @@ class _AgentCardState extends ConsumerState<_AgentCard> {
         curve: Curves.easeOut,
         child: Container(
           decoration: BoxDecoration(
-            color: _PartnerLight.spotlightCard,
+            color: Colors.white.withValues(alpha: 0.88),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-                color: _PartnerLight.chipIdleBorder, width: 0.8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
+                color: const Color(0xFFB9A7D8).withValues(alpha: 0.14),
+                blurRadius: 26,
+                spreadRadius: -12,
+                offset: const Offset(0, 16),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── 正方形封面图区（带左上角胶囊 + 右上角聊天按钮）──
+              // ── 封面图区 ──
               Expanded(
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20)),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _AgentCoverImage(index: widget.imageIndex),
-                      // 左上角分类胶囊
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.93),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _PartnerLight.chipIdleBorder,
-                              width: 0.75,
-                            ),
-                          ),
-                          child: Text(
-                            topLabel,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: _PartnerLight.titleText,
-                              height: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // 右上角前往聊天按钮
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: GestureDetector(
-                          onTap: _startChat,
-                          behavior: HitTestBehavior.opaque,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              gradient: StarpathColors.blueVioletCtaGradient,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF6366F1)
-                                      .withValues(alpha: 0.38),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: const Text(
-                              '前往',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                height: 1,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: _AgentCoverImage(index: widget.imageIndex),
                 ),
               ),
-              // ── 图片下方文字区 ─────────────────────────────────
+              // ── 文字区：名字 + 性格说明 ──
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       cardTitle,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 13,
@@ -1288,85 +1380,17 @@ class _AgentCardState extends ConsumerState<_AgentCard> {
                         height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
                       cardBio,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
-                        height: 1.3,
-                        color: _PartnerLight.subtitleText.withValues(alpha: 0.92),
+                        height: 1.4,
+                        color:
+                            _PartnerLight.subtitleText.withValues(alpha: 0.92),
                       ),
-                    ),
-                    if (traitsLine.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        '性格：$traitsLine',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10,
-                          height: 1.25,
-                          fontWeight: FontWeight.w500,
-                          color: StarpathColors.accentIndigo
-                              .withValues(alpha: 0.95),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    // 作者头像 + 名字 + 点赞数
-                    Row(
-                      children: [
-                        Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [
-                                gradEnd.withValues(alpha: 0.8),
-                                gradEnd,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              widget.agent.emoji,
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            tmpl != null
-                                ? '语音自称：${tmpl.shortName}'
-                                : widget.agent.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: _PartnerLight.subtitleText.withValues(alpha: 0.72),
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          Icons.favorite_border_rounded,
-                          size: 12,
-                          color: _PartnerLight.subtitleText.withValues(alpha: 0.45),
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${(widget.imageIndex + 1) * 38}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: _PartnerLight.subtitleText.withValues(alpha: 0.72),
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),

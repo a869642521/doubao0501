@@ -1,5 +1,4 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +9,13 @@ import 'package:starpath/features/discovery/domain/card_model.dart';
 import 'package:starpath/features/profile/data/profile_mock_data.dart';
 import 'package:starpath/features/profile/data/profile_providers.dart';
 import 'package:starpath/features/profile/domain/user_profile_model.dart';
+
+/// 个人页浅色设计系统（与 AI 伙伴页风格对齐）
+abstract final class _ProfileLight {
+  static const Color titleText = Color(0xFF14141A);
+  static const Color subtitleText = Color(0xFF636370);
+  static const Color chipShadow = Color(0xFFB9A7D8);
+}
 
 /// 个人主页：参考社交类个人页排版（头像 + 数据 + 简介 + 操作 + 亮点 + 内容 Tab + 宫格）。
 class ProfilePage extends ConsumerStatefulWidget {
@@ -39,30 +45,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _evictProfileBgFromImageCache();
-      });
-    }
-  }
-
-  void _evictProfileBgFromImageCache() {
-    final scale = MediaQuery.devicePixelRatioOf(context);
-    final key = AssetBundleImageKey(
-      bundle: DefaultAssetBundle.of(context),
-      name: _ProfileAmbientBackground.kAssetPath,
-      scale: scale,
-    );
-    imageCache.evict(key);
   }
 
   void _openMenu() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: StarpathColors.surfaceContainerHigh,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -187,15 +177,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+            padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(
-                  onPressed: _openMenu,
-                  icon: const Icon(Icons.menu_rounded),
-                  color: StarpathColors.onSurfaceVariant,
-                  tooltip: '更多',
+                GestureDetector(
+                  onTap: _openMenu,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.94),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _ProfileLight.chipShadow.withValues(alpha: 0.20),
+                          blurRadius: 20,
+                          spreadRadius: -8,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.more_horiz_rounded,
+                      size: 22,
+                      color: Color(0xFF3C3C48),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -206,7 +215,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           Text(
             displayName,
             style: textTheme.titleMedium?.copyWith(
-              color: StarpathColors.onSurface,
+              color: _ProfileLight.titleText,
               fontWeight: FontWeight.w800,
               fontSize: 18,
               letterSpacing: -0.35,
@@ -216,8 +225,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           Text(
             handle,
             style: textTheme.labelMedium?.copyWith(
-              color:
-                  StarpathColors.onSurfaceVariant.withValues(alpha: 0.75),
+              color: _ProfileLight.subtitleText.withValues(alpha: 0.80),
               fontSize: 13,
             ),
           ),
@@ -226,8 +234,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             Text(
               subtitle,
               style: textTheme.labelSmall?.copyWith(
-                color: StarpathColors.onSurfaceVariant
-                    .withValues(alpha: 0.65),
+                color: _ProfileLight.subtitleText.withValues(alpha: 0.65),
                 fontSize: 11,
               ),
             ),
@@ -243,7 +250,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   bioTitle,
                   textAlign: TextAlign.center,
                   style: textTheme.titleMedium?.copyWith(
-                    color: StarpathColors.onSurface,
+                    color: _ProfileLight.titleText,
                     fontWeight: FontWeight.w800,
                     fontSize: 17,
                     letterSpacing: -0.3,
@@ -254,8 +261,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   bioBody,
                   textAlign: TextAlign.center,
                   style: textTheme.bodySmall?.copyWith(
-                    color: StarpathColors.onSurfaceVariant
-                        .withValues(alpha: 0.92),
+                    color: _ProfileLight.subtitleText.withValues(alpha: 0.92),
                     height: 1.45,
                     fontSize: 13,
                   ),
@@ -340,7 +346,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ? mock.emptyReelsMessage
                   : mock.emptyTaggedMessage,
               style: textTheme.bodyMedium?.copyWith(
-                color: StarpathColors.onSurfaceVariant,
+                color: _ProfileLight.subtitleText,
               ),
             ),
           ),
@@ -367,7 +373,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             child: Text(
               '暂无作品',
               style: textTheme.bodyMedium?.copyWith(
-                color: StarpathColors.onSurfaceVariant,
+                color: _ProfileLight.subtitleText,
               ),
             ),
           ),
@@ -447,15 +453,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                    padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        IconButton(
-                          onPressed: _openMenu,
-                          icon: const Icon(Icons.menu_rounded),
-                          color: StarpathColors.onSurfaceVariant,
-                          tooltip: '更多',
+                        GestureDetector(
+                          onTap: _openMenu,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.94),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _ProfileLight.chipShadow
+                                      .withValues(alpha: 0.20),
+                                  blurRadius: 20,
+                                  spreadRadius: -8,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.more_horiz_rounded,
+                              size: 22,
+                              color: Color(0xFF3C3C48),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -481,10 +507,31 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        IconButton(
-                          onPressed: _openMenu,
-                          icon: const Icon(Icons.menu_rounded),
-                          color: StarpathColors.onSurfaceVariant,
+                        GestureDetector(
+                          onTap: _openMenu,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.94),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _ProfileLight.chipShadow
+                                      .withValues(alpha: 0.20),
+                                  blurRadius: 20,
+                                  spreadRadius: -8,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.more_horiz_rounded,
+                              size: 22,
+                              color: Color(0xFF3C3C48),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -563,73 +610,47 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: StarpathColors.surface,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const _ProfileAmbientBackground(),
-          CustomScrollView(slivers: slivers),
-        ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemStatusBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6F6FA),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const _ProfileAmbientBackground(),
+            CustomScrollView(slivers: slivers),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// 个人页氛围底：`images/bg.webp` 顶部区域 + 下缘渐变融入底色，整图 **30%** 不透明度。
-///
-/// **替换该文件后若画面不变**：热重载/热重启都不会重新打进包里的资源，请 **完全停止应用** 后再执行一次
-/// `flutter run`（必要时在项目 `app/` 下运行 `flutter clean` 再运行）。
+/// 个人页渐变背景（与 AI 伙伴页风格对齐：浅紫调渐变，不依赖图片资源）
 class _ProfileAmbientBackground extends StatelessWidget {
   const _ProfileAmbientBackground();
 
-  /// 与 [kAssetPath] 同步，供调试时 [imageCache.evict] 使用。
-  static const String kAssetPath = 'images/bg.webp';
-
-  static const double _kBgHeight = 500;
-
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        const ColoredBox(color: StarpathColors.surface),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: _kBgHeight,
-          child: Opacity(
-            opacity: 0.2,
-            child: Image.asset(
-              kAssetPath,
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-              filterQuality: FilterQuality.medium,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
-          ),
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            Color(0xFFF9FAFF),
+            Color(0xFFF1F0FF),
+            Color(0xFFF9F7FF),
+            Color(0xFFFDF6F0),
+          ],
+          stops: [0.0, 0.34, 0.68, 1.0],
         ),
-        const Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: _kBgHeight,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  StarpathColors.surface,
-                ],
-                stops: [0.45, 1.0],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -735,7 +756,7 @@ class _ProfileStatsRow extends StatelessWidget {
               Text(
                 value,
                 style: style.titleLarge?.copyWith(
-                  color: StarpathColors.onSurface,
+                  color: _ProfileLight.titleText,
                   fontWeight: FontWeight.w800,
                   fontSize: 20,
                   letterSpacing: -0.4,
@@ -745,8 +766,7 @@ class _ProfileStatsRow extends StatelessWidget {
               Text(
                 label,
                 style: style.labelSmall?.copyWith(
-                  color:
-                      StarpathColors.onSurfaceVariant.withValues(alpha: 0.85),
+                  color: _ProfileLight.subtitleText.withValues(alpha: 0.85),
                   fontWeight: FontWeight.w500,
                   fontSize: 12,
                 ),
@@ -776,29 +796,29 @@ class _ProfilePillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: StarpathColors.surfaceContainerHigh.withValues(alpha: 0.65),
-      borderRadius: BorderRadius.circular(100),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(100),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(
-              color: StarpathColors.outlineVariant.withValues(alpha: 0.7),
-              width: 0.8,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.90),
+          borderRadius: BorderRadius.circular(100),
+          boxShadow: [
+            BoxShadow(
+              color: _ProfileLight.chipShadow.withValues(alpha: 0.18),
+              blurRadius: 22,
+              spreadRadius: -8,
+              offset: const Offset(0, 8),
             ),
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: StarpathColors.accentViolet,
-            ),
+          ],
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF5B48E8),
           ),
         ),
       ),
@@ -830,10 +850,15 @@ class _SpotlightChip extends StatelessWidget {
           height: 64,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(
-              color: StarpathColors.accentViolet.withValues(alpha: 0.55),
-              width: 2,
-            ),
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: _ProfileLight.chipShadow.withValues(alpha: 0.20),
+                blurRadius: 18,
+                spreadRadius: -6,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: ShaderMask(
@@ -853,10 +878,10 @@ class _SpotlightChip extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: StarpathColors.onSurface.withValues(alpha: 0.9),
+            color: _ProfileLight.titleText,
           ),
         ),
       ],
@@ -900,9 +925,8 @@ class _ContentTabBar extends StatelessWidget {
                       icon,
                       size: 26,
                       color: selected
-                          ? StarpathColors.onSurface
-                          : StarpathColors.onSurfaceVariant
-                              .withValues(alpha: 0.45),
+                          ? _ProfileLight.titleText
+                          : _ProfileLight.subtitleText.withValues(alpha: 0.45),
                     ),
                     const SizedBox(height: 8),
                     AnimatedContainer(
@@ -932,10 +956,10 @@ class _ProfileGridTile extends StatelessWidget {
   const _ProfileGridTile({required this.item});
 
   static final List<List<Color>> _fallbackHues = [
-    const [Color(0xFF1E1B4B), Color(0xFF4D2E8B), Color(0xFFE879F9)],
-    const [Color(0xFF0F172A), Color(0xFF6366F1), Color(0xFFF472B6)],
-    const [Color(0xFF312E81), Color(0xFF7C3AED), Color(0xFF22D3EE)],
-    const [Color(0xFF1A1035), Color(0xFF9B72FF), Color(0xFFFF6B9D)],
+    const [Color(0xFFEDE9FE), Color(0xFFDDD6FE), Color(0xFFC4B5FD)],
+    const [Color(0xFFEEF2FF), Color(0xFFE0E7FF), Color(0xFFC7D2FE)],
+    const [Color(0xFFFAF5FF), Color(0xFFEDE9FE), Color(0xFFD8B4FE)],
+    const [Color(0xFFFCE7F3), Color(0xFFFBCFE8), Color(0xFFE9D5FF)],
   ];
 
   List<Color> get _fallbackColors =>
@@ -1001,7 +1025,7 @@ class _ProfileGridTile extends StatelessWidget {
                   child: Center(
                     child: Icon(
                       Icons.image_not_supported_outlined,
-                      color: Colors.white.withValues(alpha: 0.4),
+                      color: const Color(0xFF9B72FF).withValues(alpha: 0.45),
                       size: 28,
                     ),
                   ),
@@ -1016,8 +1040,8 @@ class _ProfileGridTile extends StatelessWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.92),
+                      style: const TextStyle(
+                        color: Color(0xFF5B48E8),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         height: 1.25,

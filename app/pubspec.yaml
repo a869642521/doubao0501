@@ -69,7 +69,12 @@ flutter:
     - video/ip0/
     - video/ip1/
     - video/ip2/
+    - video/ip_johnson/
+    - video/ip_Erica/
   fonts:
-    - family: HYZhongSongJ
+    - family: HarmonyOSSansSC
       fonts:
-        - asset: assets/fonts/HYZhongSongJ.ttf
+        - asset: assets/fonts/HarmonyOS_Sans_SC_Regular.ttf
+          weight: 400
+        - asset: assets/fonts/HarmonyOS_Sans_SC_Medium.ttf
+          weight: 500

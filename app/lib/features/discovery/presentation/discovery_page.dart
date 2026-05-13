@@ -72,14 +72,17 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
           // ── 附近 Tab：3D 地球 ─────────────────────────────────────────────
           if (_navIndex == 2) const Positioned.fill(child: NearbyGlobePage()),
 
-          // ── 关注 / 发现 Tab：瀑布流 ──────────────────────────────────────
+          // ── 关注 / 发现 Tab ─────────────────────────────────────────────
           if (_navIndex != 2)
             CustomScrollView(
               controller: _scrollController,
               slivers: [
                 _buildAppBar(),
-                _buildFeedIntro(),
-                _buildMasonryFeed(),
+                if (_navIndex == 0) ...[
+                  _buildFollowIntro(),
+                  _buildFollowCardFeed(),
+                ] else
+                  _buildDiscoveryWaterfallFeed(),
                 _buildLoadMoreIndicator(),
                 const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
@@ -223,9 +226,9 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     );
   }
 
-  // ── 横向叠放卡片 Feed ───────────────────────────────────────────────────────
+  // ── 关注：横向叠放卡片 Feed ────────────────────────────────────────────────
 
-  Widget _buildFeedIntro() {
+  Widget _buildFollowIntro() {
     final state = ref.watch(feedProvider);
     final currentCard = state.items.isNotEmpty
         ? state.items[_cardPageIndex.clamp(0, state.items.length - 1)]
@@ -281,7 +284,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     );
   }
 
-  Widget _buildMasonryFeed() {
+  Widget _buildFollowCardFeed() {
     final state = ref.watch(feedProvider);
 
     if (state.isLoading) {
@@ -358,6 +361,83 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
     );
   }
 
+  // ── 发现：瀑布流 Feed ─────────────────────────────────────────────────────
+
+  Widget _buildDiscoveryWaterfallFeed() {
+    final state = ref.watch(feedProvider);
+
+    if (state.isLoading) {
+      return const SliverFillRemaining(
+        child: Center(child: _LoadingIndicator()),
+      );
+    }
+
+    if (state.error != null && state.items.isEmpty) {
+      return SliverFillRemaining(
+        child: _ErrorView(
+          message: state.error!,
+          onRetry: () => ref.read(feedProvider.notifier).refresh(),
+        ),
+      );
+    }
+
+    if (state.items.isEmpty) {
+      return const SliverFillRemaining(child: _EmptyView());
+    }
+
+    final left = <ContentCardModel>[];
+    final right = <ContentCardModel>[];
+    for (var i = 0; i < state.items.length; i++) {
+      if (i.isEven) {
+        left.add(state.items[i]);
+      } else {
+        right.add(state.items[i]);
+      }
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+      sliver: SliverToBoxAdapter(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                children: [
+                  for (var i = 0; i < left.length; i++)
+                    _WaterfallCard(
+                      card: left[i],
+                      index: i * 2,
+                      onTap: () => context.push(
+                        '/cards/${left[i].id}',
+                        extra: left[i],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                children: [
+                  for (var i = 0; i < right.length; i++)
+                    _WaterfallCard(
+                      card: right[i],
+                      index: i * 2 + 1,
+                      onTap: () => context.push(
+                        '/cards/${right[i].id}',
+                        extra: right[i],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadMoreIndicator() {
     final state = ref.watch(feedProvider);
     if (!state.isLoadingMore) {
@@ -410,6 +490,239 @@ class _DiscoveryGradientBackground extends StatelessWidget {
             const Color(0xFFFDF6E6).withValues(alpha: 0.90),
           ],
           stops: const [0.0, 0.34, 0.68, 1.0],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Waterfall Card (发现瀑布流) ───────────────────────────────────────────────
+
+class _WaterfallCard extends StatelessWidget {
+  static const double _radius = 11.0;
+
+  final ContentCardModel card;
+  final VoidCallback onTap;
+  final int index;
+
+  const _WaterfallCard({
+    required this.card,
+    required this.onTap,
+    required this.index,
+  });
+
+  Color _hexColor(String hex) {
+    final cleaned = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$cleaned', radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = card.imageUrls.isNotEmpty ? card.imageUrls.first : '';
+    final coverHeight = index % 5 == 0
+        ? 214.0
+        : index % 3 == 0
+            ? 184.0
+            : 148.0;
+    final delay = Duration(milliseconds: (index * 38).clamp(0, 420));
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(_radius),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(_radius),
+          splashColor: Colors.white.withValues(alpha: 0.18),
+          highlightColor: Colors.white.withValues(alpha: 0.10),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.84),
+              borderRadius: BorderRadius.circular(_radius),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFBDB4D4).withValues(alpha: 0.15),
+                  blurRadius: 22,
+                  spreadRadius: -14,
+                  offset: const Offset(0, 14),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: coverHeight,
+                  width: double.infinity,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(_radius),
+                    ),
+                    child: imageUrl.trim().isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _FallbackCover(
+                              card: card,
+                            ),
+                          )
+                        : _FallbackCover(card: card),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayTitleForCard(card),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.28,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF17131F),
+                          letterSpacing: 0,
+                          fontFamilyFallback: [
+                            StarpathTheme.chineseDisplayFont,
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          _MiniAvatar(
+                            label: card.user.nickname,
+                            colorA: _hexColor(
+                              card.agent?.gradientStart ?? '#C7D9FF',
+                            ),
+                            colorB: _hexColor(
+                              card.agent?.gradientEnd ?? '#F2C6E4',
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              card.user.nickname.isEmpty
+                                  ? 'Starpath 用户'
+                                  : card.user.nickname,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF716A7D),
+                                letterSpacing: 0,
+                              ),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.favorite_rounded,
+                            size: 13,
+                            color: Color(0xFFFF7FA8),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            favoriteCountForCard(card).toString(),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF8A819B),
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    )
+        .animate(delay: delay)
+        .fadeIn(duration: 320.ms, curve: Curves.easeOut)
+        .slideY(begin: 0.10, duration: 320.ms, curve: Curves.easeOut);
+  }
+}
+
+class _FallbackCover extends StatelessWidget {
+  final ContentCardModel card;
+
+  const _FallbackCover({required this.card});
+
+  Color _hexColor(String hex) {
+    final cleaned = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$cleaned', radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFF9FBFF),
+            const Color(0xFFF3F5FF),
+            _hexColor(card.agent?.gradientEnd ?? '#C8D8FF')
+                .withValues(alpha: 0.42),
+          ],
+        ),
+      ),
+      child: CustomPaint(
+        painter: _CartoonCharacterPainter(
+          paletteA: _hexColor(card.agent?.gradientStart ?? '#A6D7FF'),
+          paletteB: _hexColor(card.agent?.gradientEnd ?? '#C4A7FF'),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniAvatar extends StatelessWidget {
+  final String label;
+  final Color colorA;
+  final Color colorB;
+
+  const _MiniAvatar({
+    required this.label,
+    required this.colorA,
+    required this.colorB,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = label.trim();
+    final letter =
+        trimmed.isEmpty ? 'S' : String.fromCharCode(trimmed.runes.first);
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [
+            colorA.withValues(alpha: 0.88),
+            colorB.withValues(alpha: 0.88),
+          ],
+        ),
+      ),
+      child: Text(
+        letter,
+        style: const TextStyle(
+          fontSize: 10,
+          height: 1,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: 0,
         ),
       ),
     );
@@ -667,7 +980,6 @@ class _FeedCardState extends State<_FeedCard> {
     if (content.length <= 18) return content;
     return '${content.substring(0, 18)}...';
   }
-
 }
 
 class _CartoonCharacterPainter extends CustomPainter {
