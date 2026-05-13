@@ -177,9 +177,11 @@ bool _utteranceLooksLikeEricaDanceRequest(String raw) {
 
   // 跳舞相关
   if (s.contains('跳舞')) return true;
-  if (s.contains('刀马旦') || s.contains('刀马刀马')) return true;
+  if (s.contains('刀马')) return true; // 含「刀马旦」「刀马」等语音识别变体
   if (RegExp(r'跳.{0,6}(一个|一支|一段|个)').hasMatch(s)) return true;
   if (RegExp(r'(给我|来|跳).{0,10}舞').hasMatch(s)) return true;
+  // 「可以跳 xxx 吗」类句式
+  if (RegExp(r'可以.{0,10}(跳|舞|dance)').hasMatch(lc)) return true;
 
   // 才艺 / 表演
   if (s.contains('才艺')) return true;
@@ -2106,24 +2108,43 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
     }
   }
 
+  /// 当前伙伴头像路径（widget 层参数会话加载前即可用，保证第一帧正确）。
+  String get _currentAgentAvatarAsset {
+    if (_isJohnsonTravelBuddySelected) return _kJohnsonAvatarAsset;
+    if (_isEricaSelected) return _kEricaAvatarAsset;
+    return _kDoubaoAvatarAsset;
+  }
+
   bool get _isJohnsonTravelBuddySelected {
+    // widget 侧：agentId / agentName / 视频路径（Spotlight 卡片进入时立即可用）
+    if (widget.agentId == 'preview-1') return true;
+    final wName = widget.agentName?.trim().toLowerCase() ?? '';
+    if (wName == 'johnson') return true;
+    if (widget.downVideo?.contains('J_GJ.mov') ?? false) return true;
+    if (widget.helloVideo?.contains('ip_johnson') ?? false) return true;
+    // 会话加载后：从 agent 模板确认
     final brief = _conversation?.agent;
     final templateId = brief?.templateId ?? '';
     final name = brief?.name ?? '';
     return templateId == 'travel-buddy' ||
         templateId == 'preview-1' ||
-        name.trim().toLowerCase() == 'johnson' ||
-        (widget.downVideo?.contains('J_GJ.mov') ?? false);
+        name.trim().toLowerCase() == 'johnson';
   }
 
   bool get _isEricaSelected {
+    // widget 侧：agentId / agentName / 视频路径（Spotlight 卡片进入时立即可用）
+    if (widget.agentId == 'preview-2') return true;
+    final wName = widget.agentName?.trim().toLowerCase() ?? '';
+    if (wName == 'erica') return true;
+    if (widget.helloVideo?.contains('ip_Erica') ?? false) return true;
+    if (widget.downVideo?.contains('ip_Erica') ?? false) return true;
+    // 会话加载后：从 agent 模板确认
     final brief = _conversation?.agent;
     final templateId = brief?.templateId ?? '';
     final name = brief?.name ?? '';
     return templateId == 'code-assistant' ||
         templateId == 'preview-2' ||
-        name.trim().toLowerCase() == 'erica' ||
-        (widget.helloVideo?.contains('ip_Erica') ?? false);
+        name.trim().toLowerCase() == 'erica';
   }
 
   bool _appearanceOptionIsSelected(_HeroAppearanceOption option) {
@@ -4653,7 +4674,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           ),
           const SizedBox(width: 12),
           // 头像
-          _ipAvatarWidget(agentId: widget.agentId, size: 36),
+          _ipAvatarWidget(agentId: widget.agentId, size: 36, asset: _currentAgentAvatarAsset),
           const SizedBox(width: 10),
           // 标题 + 在线状态：左右并排
           Expanded(
@@ -5365,7 +5386,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start, // 头像始终对齐顶部
           children: [
             if (!isUser) ...[
-              _ipAvatarWidget(agentId: widget.agentId, size: 32),
+              _ipAvatarWidget(agentId: widget.agentId, size: 32, asset: _currentAgentAvatarAsset),
               const SizedBox(width: 8),
             ],
             Flexible(
@@ -5437,7 +5458,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ipAvatarWidget(agentId: widget.agentId, size: 32),
+          _ipAvatarWidget(agentId: widget.agentId, size: 32, asset: _currentAgentAvatarAsset),
           const SizedBox(width: 8),
           Flexible(
             child: Column(
