@@ -69,3 +69,7 @@ flutter:
     - video/ip0/
     - video/ip1/
     - video/ip2/
+  fonts:
+    - family: HYZhongSongJ
+      fonts:
+        - asset: assets/fonts/HYZhongSongJ.ttf

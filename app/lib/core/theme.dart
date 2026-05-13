@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -232,6 +233,8 @@ abstract final class StarpathJuicyIcons {
 class StarpathTheme {
   StarpathTheme._();
 
+  static const String chineseDisplayFont = 'HYZhongSongJ';
+
   /// Plus Jakarta Sans 不含中文（CJK）；全局优先保证中文走系统中文字体。
   /// Emoji 作为兜底放后面，避免中文被彩色 Emoji fallback 影响。
   static List<String> get emojiFontFallback {
@@ -239,6 +242,7 @@ class StarpathTheme {
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
         return const [
+          chineseDisplayFont,
           'PingFang SC',
           'PingFang TC',
           'Heiti SC',
@@ -246,6 +250,7 @@ class StarpathTheme {
         ];
       case TargetPlatform.android:
         return const [
+          chineseDisplayFont,
           'Noto Sans SC',
           'Noto Sans CJK SC',
           'Noto Color Emoji',
@@ -254,6 +259,7 @@ class StarpathTheme {
       case TargetPlatform.linux:
       case TargetPlatform.windows:
         return const [
+          chineseDisplayFont,
           'Noto Sans SC',
           'Noto Sans CJK SC',
           'Noto Color Emoji',
@@ -295,7 +301,6 @@ class StarpathTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: StarpathColors.surface,
-
       colorScheme: ColorScheme.light(
         primary: StarpathColors.primary,
         onPrimary: StarpathColors.onPrimary,
@@ -320,7 +325,6 @@ class StarpathTheme {
         surfaceContainerHighest: StarpathColors.surfaceContainerHighest,
         surfaceBright: StarpathColors.surfaceBright,
       ),
-
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -334,17 +338,13 @@ class StarpathTheme {
             letterSpacing: -0.34,
           ),
         ),
-        iconTheme: const IconThemeData(
-            color: StarpathColors.onSurfaceVariant),
+        iconTheme: const IconThemeData(color: StarpathColors.onSurfaceVariant),
       ),
-
       cardTheme: CardThemeData(
         elevation: 0,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         color: StarpathColors.surfaceContainer,
       ),
-
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: StarpathColors.surfaceContainerHighest,
@@ -358,18 +358,15 @@ class StarpathTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(100),
-          borderSide:
-              const BorderSide(color: StarpathColors.primary, width: 2),
+          borderSide: const BorderSide(color: StarpathColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(100),
-          borderSide:
-              const BorderSide(color: StarpathColors.error, width: 1.5),
+          borderSide: const BorderSide(color: StarpathColors.error, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(100),
-          borderSide:
-              const BorderSide(color: StarpathColors.error, width: 2),
+          borderSide: const BorderSide(color: StarpathColors.error, width: 2),
         ),
         hintStyle: _plusJakartaWithEmoji(
           GoogleFonts.plusJakartaSans(
@@ -385,23 +382,20 @@ class StarpathTheme {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       ),
-
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           minimumSize: const Size(double.infinity, 52),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(100)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
           elevation: 0,
           backgroundColor: StarpathColors.primary,
           foregroundColor: StarpathColors.onPrimary,
         ),
       ),
-
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        indicatorColor:
-            StarpathColors.primary.withValues(alpha: 0.12),
+        indicatorColor: StarpathColors.primary.withValues(alpha: 0.12),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return _plusJakartaWithEmoji(
@@ -421,14 +415,12 @@ class StarpathTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(
-                color: StarpathColors.primary, size: 24);
+            return const IconThemeData(color: StarpathColors.primary, size: 24);
           }
           return const IconThemeData(
               color: StarpathColors.onSurfaceVariant, size: 24);
         }),
       ),
-
       textTheme: TextTheme(
         displayLarge: _h(56, FontWeight.bold),
         displayMedium: _h(44, FontWeight.bold),
@@ -438,15 +430,11 @@ class StarpathTheme {
         titleLarge: _h(17, FontWeight.w600),
         titleMedium: _b(15, FontWeight.w600, StarpathColors.onSurface),
         titleSmall: _b(13, FontWeight.w600, StarpathColors.onSurface),
-        bodyLarge:
-            _b(16, FontWeight.normal, StarpathColors.onSurfaceVariant),
-        bodyMedium:
-            _b(14, FontWeight.normal, StarpathColors.onSurfaceVariant),
-        bodySmall:
-            _b(12, FontWeight.normal, StarpathColors.onSurfaceVariant),
+        bodyLarge: _b(16, FontWeight.normal, StarpathColors.onSurfaceVariant),
+        bodyMedium: _b(14, FontWeight.normal, StarpathColors.onSurfaceVariant),
+        bodySmall: _b(12, FontWeight.normal, StarpathColors.onSurfaceVariant),
         labelLarge: _b(14, FontWeight.w600, StarpathColors.onSurface),
-        labelMedium:
-            _b(12, FontWeight.w500, StarpathColors.onSurfaceVariant),
+        labelMedium: _b(12, FontWeight.w500, StarpathColors.onSurfaceVariant),
         labelSmall: _b(11, FontWeight.w500,
             StarpathColors.onSurfaceVariant.withValues(alpha: 0.7)),
       ),

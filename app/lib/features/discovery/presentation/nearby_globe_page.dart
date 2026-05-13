@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:starpath/core/theme.dart';
 import 'package:starpath/features/discovery/domain/card_model.dart';
 import 'package:starpath/features/discovery/widgets/user_avatar.dart';
@@ -17,6 +18,7 @@ class GlobeAgent {
   final double lat;
   final double lng;
   final String city;
+
   /// LOD 层级：1=始终显示，2=缩放≥0.90 时显示，3=缩放≥1.55 时显示
   final int tier;
 
@@ -39,46 +41,194 @@ final _mockAgents = _generateAgents();
 List<GlobeAgent> _generateAgents() {
   // Tier 1：25 个核心 agent，任何缩放都可见
   const tier1Names = [
-    '星际旅人', 'Luna', 'Muse', 'Sakura', 'Aurora',
-    'Prism', 'Echo', 'Nova', 'Drift', 'Zen',
-    '夜雨', 'Pixel', 'Lyra', 'Cipher', 'Volta',
-    '光年', 'Iris', 'Spark', 'Vega', 'Nebula',
-    'Comet', 'Astra', '晓风', 'Lumen', 'Sable',
+    '星际旅人',
+    'Luna',
+    'Muse',
+    'Sakura',
+    'Aurora',
+    'Prism',
+    'Echo',
+    'Nova',
+    'Drift',
+    'Zen',
+    '夜雨',
+    'Pixel',
+    'Lyra',
+    'Cipher',
+    'Volta',
+    '光年',
+    'Iris',
+    'Spark',
+    'Vega',
+    'Nebula',
+    'Comet',
+    'Astra',
+    '晓风',
+    'Lumen',
+    'Sable',
   ];
   // Tier 2：35 个次级 agent，放大到 0.90× 后渐显
   const tier2Names = [
-    'Quill', '灵曦', 'Blaze', 'Crest', 'Opal',
-    'Rune', '幻影', 'Flare', 'Dusk', '云霄',
-    'Soleil', 'Myra', '凌霄', 'Jinx', 'Halo',
-    'Zara', '晨星', 'Clio', 'Ember', '紫烟',
-    'Fable', 'Onyx', '追风', 'Vesper', 'Wren',
-    '梦织', 'Axel', 'Celeste', '虹影', 'Phos',
-    'Seren', '流光', 'Kira', 'Thorn', 'Lux',
+    'Quill',
+    '灵曦',
+    'Blaze',
+    'Crest',
+    'Opal',
+    'Rune',
+    '幻影',
+    'Flare',
+    'Dusk',
+    '云霄',
+    'Soleil',
+    'Myra',
+    '凌霄',
+    'Jinx',
+    'Halo',
+    'Zara',
+    '晨星',
+    'Clio',
+    'Ember',
+    '紫烟',
+    'Fable',
+    'Onyx',
+    '追风',
+    'Vesper',
+    'Wren',
+    '梦织',
+    'Axel',
+    'Celeste',
+    '虹影',
+    'Phos',
+    'Seren',
+    '流光',
+    'Kira',
+    'Thorn',
+    'Lux',
   ];
   // Tier 3：60 个细节 agent，放大到 1.55× 后渐显
   const tier3Names = [
-    'Axiom', 'Brio', 'Coda', 'Deva', 'Elara',
-    'Feon', 'Gale', 'Helio', 'Iona', 'Jade',
-    'Kylo', 'Lara', 'Mira', 'Nori', 'Orion',
-    'Paz', 'Quinn', 'Rae', 'Sol', 'Tide',
-    'Ursa', 'Vela', 'Wynn', 'Xena', 'Yuri',
-    'Abel', 'Bex', 'Cyan', 'Dex', 'Ezra',
-    'Finn', 'Gwen', 'Hex', 'Ilia', 'Juno',
-    'Kael', 'Lior', 'Mael', 'Nyx', 'Otto',
-    'Pia', 'Reef', 'Saya', 'Teo', 'Uma',
-    'Vale', 'Wes', 'Xio', 'Yael', 'Aiko',
-    'Bael', 'Dian', 'Elio', 'Fay', 'Geo',
-    'Hiro', 'Ida', '銀河', '彩虹', '繁星',
+    'Axiom',
+    'Brio',
+    'Coda',
+    'Deva',
+    'Elara',
+    'Feon',
+    'Gale',
+    'Helio',
+    'Iona',
+    'Jade',
+    'Kylo',
+    'Lara',
+    'Mira',
+    'Nori',
+    'Orion',
+    'Paz',
+    'Quinn',
+    'Rae',
+    'Sol',
+    'Tide',
+    'Ursa',
+    'Vela',
+    'Wynn',
+    'Xena',
+    'Yuri',
+    'Abel',
+    'Bex',
+    'Cyan',
+    'Dex',
+    'Ezra',
+    'Finn',
+    'Gwen',
+    'Hex',
+    'Ilia',
+    'Juno',
+    'Kael',
+    'Lior',
+    'Mael',
+    'Nyx',
+    'Otto',
+    'Pia',
+    'Reef',
+    'Saya',
+    'Teo',
+    'Uma',
+    'Vale',
+    'Wes',
+    'Xio',
+    'Yael',
+    'Aiko',
+    'Bael',
+    'Dian',
+    'Elio',
+    'Fay',
+    'Geo',
+    'Hiro',
+    'Ida',
+    '銀河',
+    '彩虹',
+    '繁星',
   ];
   const cities = [
-    '北京', '纽约', '巴黎', '东京', '奥斯陆', '悉尼', '伦敦', '新德里',
-    '圣保罗', '洛杉矶', '上海', '旧金山', '莫斯科', '新加坡', '约翰内斯堡', '深圳',
-    '伊斯坦布尔', '墨西哥城', '迪拜', '蒙特利尔', '首尔', '开罗', '成都', '柏林',
-    '阿姆斯特丹', '迈阿密', '孟买', '里约', '多伦多', '香港', '台北', '马德里',
-    '雅典', '里斯本', '曼谷', '维也纳', '布宜诺斯艾利斯', '武汉', '雅加达', '奥克兰',
-    '拉各斯', '卡拉奇', '德黑兰', '哥本哈根', '斯德哥尔摩', '波哥大', '基辅', '西安',
-    '布达佩斯', '华沙', '布拉格', '苏黎世', '杭州', '罗马', '广州', '赫尔辛基',
-    '曼彻斯特', '天津', '达拉斯', '迪拜',
+    '北京',
+    '纽约',
+    '巴黎',
+    '东京',
+    '奥斯陆',
+    '悉尼',
+    '伦敦',
+    '新德里',
+    '圣保罗',
+    '洛杉矶',
+    '上海',
+    '旧金山',
+    '莫斯科',
+    '新加坡',
+    '约翰内斯堡',
+    '深圳',
+    '伊斯坦布尔',
+    '墨西哥城',
+    '迪拜',
+    '蒙特利尔',
+    '首尔',
+    '开罗',
+    '成都',
+    '柏林',
+    '阿姆斯特丹',
+    '迈阿密',
+    '孟买',
+    '里约',
+    '多伦多',
+    '香港',
+    '台北',
+    '马德里',
+    '雅典',
+    '里斯本',
+    '曼谷',
+    '维也纳',
+    '布宜诺斯艾利斯',
+    '武汉',
+    '雅加达',
+    '奥克兰',
+    '拉各斯',
+    '卡拉奇',
+    '德黑兰',
+    '哥本哈根',
+    '斯德哥尔摩',
+    '波哥大',
+    '基辅',
+    '西安',
+    '布达佩斯',
+    '华沙',
+    '布拉格',
+    '苏黎世',
+    '杭州',
+    '罗马',
+    '广州',
+    '赫尔辛基',
+    '曼彻斯特',
+    '天津',
+    '达拉斯',
+    '迪拜',
   ];
 
   final rng = Random(0xA1B2C3D4);
@@ -144,6 +294,7 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
 
   // 缩放：本次捏合起点
   double _scaleStart = 1.0;
+
   /// 触控板 PointerPanZoom 手势起点时的缩放值（macOS 双指捏合走此路径）
   double _panZoomBaseScale = 1.0;
   static const double _kMinScale = 0.45;
@@ -152,12 +303,16 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
   // ── LOD（层次细节）阈值 ─────────────────────────────────────────────────
   /// Tier 2 agent 开始淡入的缩放值（scale≥1 时，类似地图 zoom level）
   static const double _kTier2Scale = 0.90;
+
   /// Tier 3 agent 开始淡入的缩放值（仅随放大出现，避免小球上过密）
   static const double _kTier3Scale = 1.55;
+
   /// 地球缩小时 tier2 的起算阈值（越低 = 小球上第二层头像越早满显）
   static const double _kTier2WhenGlobeSmall = 0.28;
+
   /// 每层淡入过渡范围（在此范围内从 0→1 渐显）
   static const double _kTierFadeRange = 0.22;
+
   /// 每帧最多渲染的 marker 数量上限（防止极端情况下掉帧；与当前 mock 总量对齐）
   static const int _kMaxMarkers = 120;
 
@@ -169,8 +324,7 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
     // tier == 2
     if (scale >= 1.0) return _kTier2Scale;
     final u = ((scale - _kMinScale) / (1.0 - _kMinScale)).clamp(0.0, 1.0);
-    return _kTier2WhenGlobeSmall +
-        (_kTier2Scale - _kTier2WhenGlobeSmall) * u;
+    return _kTier2WhenGlobeSmall + (_kTier2Scale - _kTier2WhenGlobeSmall) * u;
   }
 
   /// 根据缩放值计算指定 tier 的可见度 [0.0, 1.0]
@@ -216,8 +370,7 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
   @override
   void initState() {
     super.initState();
-    _globeScene =
-        Listenable.merge([_rotation, _scaleN, _selectedN]);
+    _globeScene = Listenable.merge([_rotation, _scaleN, _selectedN]);
     _ticker = createTicker(_onTick);
     _ticker.start(); // 始终运行，支持自动慢转
 
@@ -331,8 +484,7 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
     final t = Curves.easeOutCubic.transform(_focusCameraCtrl.value);
     final rx = _camAnimStartRot.rotX +
         (_camAnimEndRot.rotX - _camAnimStartRot.rotX) * t;
-    final ry =
-        _lerpAngle(_camAnimStartRot.rotY, _camAnimEndRot.rotY, t);
+    final ry = _lerpAngle(_camAnimStartRot.rotY, _camAnimEndRot.rotY, t);
     _rotation.value = _GlobeRotation(rotX: rx, rotY: ry);
     _scaleN.value =
         _camAnimStartScale + (_camAnimEndScale - _camAnimStartScale) * t;
@@ -378,8 +530,7 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
     GlobeAgent? best;
     var bestD = double.infinity;
     for (final a in _mockAgents) {
-      final d =
-          (pow(a.lat - demoLat, 2) + pow(a.lng - demoLng, 2)).toDouble();
+      final d = (pow(a.lat - demoLat, 2) + pow(a.lng - demoLng, 2)).toDouble();
       if (d < bestD) {
         bestD = d;
         best = a;
@@ -474,124 +625,205 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
               (_scaleN.value * factor).clamp(_kMinScale, _kMaxScale);
         },
         child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        // 单击空白区域关闭卡片
-        onTap: () {
-          if (_selectedN.value != null) _selectedN.value = null;
-        },
-        // 双击：重置缩放至 1.0（带弹性感觉）
-        onDoubleTap: () {
-          _scaleN.value = 1.0;
-        },
-        // onScaleXxx：触摸屏双指捏合；与触控板 PointerPanZoom 互补
-        onScaleStart: (d) {
-          _isDragging = true;
-          _vX = 0;
-          _vY = 0;
-          _startGX = d.focalPoint.dx;
-          _startGY = d.focalPoint.dy;
-          final r = _rotation.value;
-          _rotXStart = r.rotX;
-          _rotYStart = r.rotY;
-          _scaleStart = _scaleN.value;
-        },
-        onScaleUpdate: (d) {
-          final dx = d.focalPoint.dx - _startGX;
-          final dy = d.focalPoint.dy - _startGY;
-          final newRotX = (_rotXStart + dy / h * pi * 0.75)
-              .clamp(-pi / 2.05, pi / 2.05);
-          final newRotY = _rotYStart + dx / w * pi * 1.0;
-          final newScale =
-              (_scaleStart * d.scale).clamp(_kMinScale, _kMaxScale);
-          _rotation.value = _GlobeRotation(rotX: newRotX, rotY: newRotY);
-          _scaleN.value = newScale;
-        },
-        onScaleEnd: (d) {
-          _isDragging = false;
-          _vX = d.velocity.pixelsPerSecond.dy / h * pi * 2.8;
-          _vY = d.velocity.pixelsPerSecond.dx / w * pi * 2.8;
-          _lastTickTime = null;
-        },
-        child: Stack(
-          children: [
-            // ① 星空背景
-            const Positioned.fill(
-              child: RepaintBoundary(child: _StarfieldBg()),
-            ),
+          behavior: HitTestBehavior.opaque,
+          // 单击空白区域关闭卡片
+          onTap: () {
+            if (_selectedN.value != null) _selectedN.value = null;
+          },
+          // 双击：重置缩放至 1.0（带弹性感觉）
+          onDoubleTap: () {
+            _scaleN.value = 1.0;
+          },
+          // onScaleXxx：触摸屏双指捏合；与触控板 PointerPanZoom 互补
+          onScaleStart: (d) {
+            _isDragging = true;
+            _vX = 0;
+            _vY = 0;
+            _startGX = d.focalPoint.dx;
+            _startGY = d.focalPoint.dy;
+            final r = _rotation.value;
+            _rotXStart = r.rotX;
+            _rotYStart = r.rotY;
+            _scaleStart = _scaleN.value;
+          },
+          onScaleUpdate: (d) {
+            final dx = d.focalPoint.dx - _startGX;
+            final dy = d.focalPoint.dy - _startGY;
+            final newRotX =
+                (_rotXStart + dy / h * pi * 0.75).clamp(-pi / 2.05, pi / 2.05);
+            final newRotY = _rotYStart + dx / w * pi * 1.0;
+            final newScale =
+                (_scaleStart * d.scale).clamp(_kMinScale, _kMaxScale);
+            _rotation.value = _GlobeRotation(rotX: newRotX, rotY: newRotY);
+            _scaleN.value = newScale;
+          },
+          onScaleEnd: (d) {
+            _isDragging = false;
+            _vX = d.velocity.pixelsPerSecond.dy / h * pi * 2.8;
+            _vY = d.velocity.pixelsPerSecond.dx / w * pi * 2.8;
+            _lastTickTime = null;
+          },
+          child: Stack(
+            children: [
+              // ① 星空背景
+              const Positioned.fill(
+                child: RepaintBoundary(child: _StarfieldBg()),
+              ),
 
-            // ② 顶部标题 — 仅随缩放重建，不随地球自转 ticker 重建
-            AnimatedBuilder(
-              animation: _scaleN,
-              builder: (context, _) {
-                final scale = _scaleN.value;
-                final baseR = (w < h ? w : h) * 0.42;
-                final globeR = baseR * scale;
-                final globeCenter = Offset(w / 2, h * 0.42 + 60.0);
-                final titleOp = _nearbyTitleOpacityFor(scale);
-                return Positioned(
-                  top: (globeCenter.dy - globeR) * 0.18,
-                  bottom: h - (globeCenter.dy - globeR) + 8,
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    ignoring: titleOp < 0.05,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 240),
-                      curve: Curves.easeOutCubic,
-                      opacity: titleOp,
-                      child: AnimatedSlide(
+              // ② 顶部标题 — 仅随缩放重建，不随地球自转 ticker 重建
+              AnimatedBuilder(
+                animation: _scaleN,
+                builder: (context, _) {
+                  final scale = _scaleN.value;
+                  final baseR = (w < h ? w : h) * 0.42;
+                  final globeR = baseR * scale;
+                  final globeCenter = Offset(w / 2, h * 0.42 + 60.0);
+                  final titleOp = _nearbyTitleOpacityFor(scale);
+                  return Positioned(
+                    top: (globeCenter.dy - globeR) * 0.18,
+                    bottom: h - (globeCenter.dy - globeR) + 8,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      ignoring: titleOp < 0.05,
+                      child: AnimatedOpacity(
                         duration: const Duration(milliseconds: 240),
                         curve: Curves.easeOutCubic,
-                        offset: Offset(0, -0.12 * (1.0 - titleOp)),
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 14),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ShaderMask(
-                                  shaderCallback: (bounds) =>
-                                      const LinearGradient(
-                                        colors: [
-                                          Color(0xFFFFFFFF),
-                                          Color(0xFFCB9EFF),
-                                        ],
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                      ).createShader(bounds),
-                                  child: const Text(
+                        opacity: titleOp,
+                        child: AnimatedSlide(
+                          duration: const Duration(milliseconds: 240),
+                          curve: Curves.easeOutCubic,
+                          offset: Offset(0, -0.12 * (1.0 - titleOp)),
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 14),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
                                     '在全球寻找你的',
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 2.5,
-                                      height: 1.3,
+                                    style: GoogleFonts.cormorantGaramond(
+                                      fontSize: 31,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF76669A),
+                                      height: 1.12,
+                                      letterSpacing: 0,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                ShaderMask(
-                                  shaderCallback: (bounds) =>
-                                      const LinearGradient(
-                                        colors: [
-                                          Color(0xFFFFFFFF),
-                                          Color(0xFFCB9EFF),
-                                        ],
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                      ).createShader(bounds),
-                                  child: const Text(
+                                  const SizedBox(height: 4),
+                                  Text(
                                     'Agent 伙伴',
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: 2.0,
-                                      height: 1.3,
+                                    style: GoogleFonts.cormorantGaramond(
+                                      fontSize: 38,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF5F547F),
+                                      height: 1.0,
+                                      letterSpacing: 0,
                                     ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                      .animate()
+                      .fadeIn(duration: 700.ms)
+                      .slideY(begin: -0.12, curve: Curves.easeOut);
+                },
+              ),
+
+              // ③④ 地球 + 球面标记：旋转/缩放驱动，与标题、底栏解耦
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _globeScene,
+                    builder: (context, _) {
+                      final rot = _rotation.value;
+                      final scale = _scaleN.value;
+                      final baseR = (w < h ? w : h) * 0.42;
+                      final globeR = baseR * scale;
+                      final globeCenter = Offset(w / 2, h * 0.42 + 60.0);
+                      final backface = _backfaceZCullFor(scale);
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned(
+                            left: globeCenter.dx - globeR,
+                            top: globeCenter.dy - globeR,
+                            child: SizedBox(
+                              width: globeR * 2,
+                              height: globeR * 2,
+                              child: CustomPaint(
+                                painter: _GlobeBodyPainter(
+                                  rotX: rot.rotX,
+                                  rotY: rot.rotY,
+                                  radius: globeR,
+                                ),
+                              ),
+                            ),
+                          ),
+                          ..._buildMarkers(
+                            center: globeCenter,
+                            globeR: globeR,
+                            rotX: rot.rotX,
+                            rotY: rot.rotY,
+                            scale: scale,
+                            backfaceZCull: backface,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // ④½ 放大发现更多 hint — 仅随缩放更新
+              AnimatedBuilder(
+                animation: _scaleN,
+                builder: (context, _) {
+                  final scale = _scaleN.value;
+                  if (scale >= _kTier3Scale) {
+                    return const SizedBox.shrink();
+                  }
+                  return Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: globeActionsBottom + 4,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: _zoomHintOpacityFor(scale),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.zoom_in_rounded,
+                                  size: 13,
+                                  color: Colors.white.withValues(alpha: 0.65),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  '放大可发现更多 Agent',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white.withValues(alpha: 0.65),
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
@@ -600,194 +832,93 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
                         ),
                       ),
                     ),
-                  ),
-                ).animate().fadeIn(duration: 700.ms).slideY(begin: -0.12, curve: Curves.easeOut);
-              },
-            ),
+                  );
+                },
+              ),
 
-            // ③④ 地球 + 球面标记：旋转/缩放驱动，与标题、底栏解耦
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: _globeScene,
-                  builder: (context, _) {
-                    final rot = _rotation.value;
-                    final scale = _scaleN.value;
-                    final baseR = (w < h ? w : h) * 0.42;
-                    final globeR = baseR * scale;
-                    final globeCenter = Offset(w / 2, h * 0.42 + 60.0);
-                    final backface = _backfaceZCullFor(scale);
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          left: globeCenter.dx - globeR,
-                          top: globeCenter.dy - globeR,
-                          child: SizedBox(
-                            width: globeR * 2,
-                            height: globeR * 2,
-                            child: CustomPaint(
-                              painter: _GlobeBodyPainter(
-                                rotX: rot.rotX,
-                                rotY: rot.rotY,
-                                radius: globeR,
-                              ),
+              // ⑤ 底部「推荐 / 附近 / 随机」快捷图标（主导航栏之上）
+              Positioned(
+                left: 24,
+                right: 24,
+                // 相对「-28-80」再上移 50px → bottom 增加 50
+                bottom: globeActionsBottom - 28 - 30,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _GlobeMiniIcon(
+                      icon: Icons.auto_awesome_rounded,
+                      label: '推荐',
+                      gradientColors: const [
+                        Color(0xFF7C3AED),
+                        Color(0xFFEC4899),
+                      ],
+                      onTap: _onTapRecommended,
+                    ),
+                    const SizedBox(width: 28),
+                    _GlobeMiniIcon(
+                      icon: Icons.near_me_rounded,
+                      label: '附近',
+                      gradientColors: const [
+                        Color(0xFF0EA5E9),
+                        Color(0xFF10B981),
+                      ],
+                      onTap: _onTapNearby,
+                    ),
+                    const SizedBox(width: 28),
+                    _GlobeMiniIcon(
+                      icon: Icons.shuffle_rounded,
+                      label: '随机',
+                      gradientColors: const [
+                        Color(0xFF8B5CF6),
+                        Color(0xFF06B6D4),
+                      ],
+                      onTap: _onTapRandom,
+                    ),
+                  ],
+                ),
+              ).animate().fadeIn(delay: 520.ms, duration: 420.ms).slideY(
+                    begin: 0.15,
+                    curve: Curves.easeOut,
+                  ),
+
+              // ⑥ 气泡卡片：避开底部快捷图标 + 主导航栏占位
+              Positioned(
+                top: 0,
+                bottom: globeActionsBottom + 92,
+                left: 16,
+                right: 16,
+                child: ValueListenableBuilder<GlobeAgent?>(
+                  valueListenable: _selectedN,
+                  builder: (context, selected, _) {
+                    return Center(
+                      child: Transform.translate(
+                        offset: const Offset(0, _kBubbleCardTranslateY),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 260),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, -0.08),
+                                end: Offset.zero,
+                              ).animate(anim),
+                              child: child,
                             ),
                           ),
+                          child: selected != null
+                              ? _buildBubbleCard(selected,
+                                  key: ValueKey(selected.id))
+                              : const SizedBox.shrink(key: ValueKey('empty')),
                         ),
-                        ..._buildMarkers(
-                          center: globeCenter,
-                          globeR: globeR,
-                          rotX: rot.rotX,
-                          rotY: rot.rotY,
-                          scale: scale,
-                          backfaceZCull: backface,
-                        ),
-                      ],
+                      ),
                     );
                   },
                 ),
               ),
-            ),
-
-            // ④½ 放大发现更多 hint — 仅随缩放更新
-            AnimatedBuilder(
-              animation: _scaleN,
-              builder: (context, _) {
-                final scale = _scaleN.value;
-                if (scale >= _kTier3Scale) {
-                  return const SizedBox.shrink();
-                }
-                return Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: globeActionsBottom + 4,
-                  child: IgnorePointer(
-                    child: Opacity(
-                      opacity: _zoomHintOpacityFor(scale),
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.12),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.zoom_in_rounded,
-                                size: 13,
-                                color: Colors.white.withValues(alpha: 0.65),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                '放大可发现更多 Agent',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white.withValues(alpha: 0.65),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            // ⑤ 底部「推荐 / 附近 / 随机」快捷图标（主导航栏之上）
-            Positioned(
-              left: 24,
-              right: 24,
-              // 相对「-28-80」再上移 50px → bottom 增加 50
-              bottom: globeActionsBottom - 28 - 30,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _GlobeMiniIcon(
-                    icon: Icons.auto_awesome_rounded,
-                    label: '推荐',
-                    gradientColors: const [
-                      Color(0xFF7C3AED),
-                      Color(0xFFEC4899),
-                    ],
-                    onTap: _onTapRecommended,
-                  ),
-                  const SizedBox(width: 28),
-                  _GlobeMiniIcon(
-                    icon: Icons.near_me_rounded,
-                    label: '附近',
-                    gradientColors: const [
-                      Color(0xFF0EA5E9),
-                      Color(0xFF10B981),
-                    ],
-                    onTap: _onTapNearby,
-                  ),
-                  const SizedBox(width: 28),
-                  _GlobeMiniIcon(
-                    icon: Icons.shuffle_rounded,
-                    label: '随机',
-                    gradientColors: const [
-                      Color(0xFF8B5CF6),
-                      Color(0xFF06B6D4),
-                    ],
-                    onTap: _onTapRandom,
-                  ),
-                ],
-              ),
-            ).animate().fadeIn(delay: 520.ms, duration: 420.ms).slideY(
-                  begin: 0.15,
-                  curve: Curves.easeOut,
-                ),
-
-          // ⑥ 气泡卡片：避开底部快捷图标 + 主导航栏占位
-          Positioned(
-            top: 0,
-            bottom: globeActionsBottom + 92,
-            left: 16,
-            right: 16,
-            child: ValueListenableBuilder<GlobeAgent?>(
-              valueListenable: _selectedN,
-              builder: (context, selected, _) {
-                return Center(
-                  child: Transform.translate(
-                    offset: const Offset(0, _kBubbleCardTranslateY),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 260),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, -0.08),
-                            end: Offset.zero,
-                          ).animate(anim),
-                          child: child,
-                        ),
-                      ),
-                      child: selected != null
-                          ? _buildBubbleCard(selected,
-                              key: ValueKey(selected.id))
-                          : const SizedBox.shrink(key: ValueKey('empty')),
-                    ),
-                  ),
-                );
-              },
-            ),
+            ],
           ),
-
-          ],
-        ),
         ),
       );
     });
@@ -850,8 +981,7 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
     return visible.map((p) {
       final depthScale = 0.32 + p.depth * 0.68;
       // 深度透明度 × tier 淡入透明度
-      final opacity =
-          ((0.18 + p.depth * 0.82) * p.tierAlpha).clamp(0.0, 1.0);
+      final opacity = ((0.18 + p.depth * 0.82) * p.tierAlpha).clamp(0.0, 1.0);
       final isSelected = _selectedN.value?.id == p.agent.id;
 
       return Positioned(
@@ -867,8 +997,7 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
               alignment: Alignment.center,
               child: RepaintBoundary(
                 child: GestureDetector(
-                  onTap: () => _selectedN.value =
-                      isSelected ? null : p.agent,
+                  onTap: () => _selectedN.value = isSelected ? null : p.agent,
                   child: _SoulMarker(
                     agent: p.agent,
                     selected: isSelected,
@@ -885,9 +1014,26 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
   // ── AI 伙伴气泡卡片 ───────────────────────────────────────────────────────
 
   static const _companionNames = [
-    '星辰', 'Nova AI', '灵感缪斯', 'Lumina', '幻想家', '引路人', 'Aura', '智能先锋',
-    '漫游者', 'Oracle', '创作精灵', 'Spark', '深海之声', 'Nexus', '光影师', '量子',
-    'Aria', '旅行家', '极光', '梦境编织者',
+    '星辰',
+    'Nova AI',
+    '灵感缪斯',
+    'Lumina',
+    '幻想家',
+    '引路人',
+    'Aura',
+    '智能先锋',
+    '漫游者',
+    'Oracle',
+    '创作精灵',
+    'Spark',
+    '深海之声',
+    'Nexus',
+    '光影师',
+    '量子',
+    'Aria',
+    '旅行家',
+    '极光',
+    '梦境编织者',
   ];
 
   static const _companionDescs = [
@@ -919,8 +1065,13 @@ class _NearbyGlobePageState extends State<NearbyGlobePage>
   static const double _kBubbleCardWidth = _kBubbleCoverSide + _kBubbleInset * 2;
 
   static const List<String> _kBubbleIpImages = [
-    'images/ip0.png', 'images/ip1.png', 'images/ip2.png', 'images/ip3.png',
-    'images/ip4.png', 'images/ip5.png', 'images/ip7.png',
+    'images/ip0.png',
+    'images/ip1.png',
+    'images/ip2.png',
+    'images/ip3.png',
+    'images/ip4.png',
+    'images/ip5.png',
+    'images/ip7.png',
   ];
 
   Widget _buildBubbleCard(GlobeAgent agent, {Key? key}) {
@@ -1200,15 +1351,15 @@ class _GlobeBodyPainter extends CustomPainter {
     return Offset(cx + x2 * r, cy - y1 * r);
   }
 
-  // ── 紫色系调色板 ─────────────────────────────────────────────────────────
-  static const _purpleDeep   = Color(0xFF0D0520); // 极深紫黑，球心暗部
-  static const _purpleMid    = Color(0xFF1E0A4A); // 中深紫
-  static const _purpleLight  = Color(0xFF3D1A8A); // 亮侧紫
-  static const _violet       = Color(0xFF7C3AED); // 紫色网格线
-  static const _violetBright = Color(0xFF9B5FFF); // 赤道加强线
-  static const _pinkPurple   = Color(0xFFD175FF); // 极地光晕
-  static const _outerGlow1   = Color(0xFF8B3FE8); // 大气外发光核心
-  static const _outerGlow2   = Color(0xFFB76EFF); // 大气外发光边缘
+  // ── 参考图风格：柔光玻璃球调色板 ─────────────────────────────────────────
+  static const _orbBase = Color(0xFFF6E2FF);
+  static const _orbBlue = Color(0xFFC8D7FF);
+  static const _orbPink = Color(0xFFFFD6EF);
+  static const _orbViolet = Color(0xFFBBA8FF);
+  static const _gridLavender = Color(0xFF9D8CC0);
+  static const _rim = Color(0xFFFFFFFF);
+  static const _outerGlow1 = Color(0xFFD6C2FF);
+  static const _outerGlow2 = Color(0xFFFFD7F2);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1216,40 +1367,41 @@ class _GlobeBodyPainter extends CustomPainter {
     final r = radius;
     final rect = Rect.fromCircle(center: center, radius: r);
 
-    // ── ① 外发光（弱化：减小范围和透明度）──────────────────────────────────
+    // ── ① 外发光：参考图中间球的柔软光晕 ───────────────────────────────────
     canvas.drawCircle(
       center,
-      r * 1.28,
+      r * 1.35,
       Paint()
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 28)
-        ..color = _outerGlow1.withValues(alpha: 0.14),
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 34)
+        ..color = _outerGlow1.withValues(alpha: 0.34),
     );
     canvas.drawCircle(
       center,
-      r * 1.08,
+      r * 1.12,
       Paint()
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
-        ..color = _outerGlow2.withValues(alpha: 0.22),
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22)
+        ..color = _outerGlow2.withValues(alpha: 0.28),
     );
 
     // ── ② 以下内容裁剪在球体内 ────────────────────────────────────────────
     canvas.save();
     canvas.clipPath(Path()..addOval(rect));
 
-    // 深紫渐变底色：从左上亮紫 → 右下极深紫黑
+    // 淡紫玻璃球底色：保留 3D 旋转逻辑，视觉改成轻盈柔光。
     canvas.drawCircle(
       center,
       r,
       Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(-0.30, -0.38),
-          radius: 1.30,
+        ..shader = RadialGradient(
+          center: const Alignment(-0.34, -0.42),
+          radius: 1.05,
           colors: [
-            _purpleLight,
-            _purpleMid,
-            _purpleDeep,
+            Colors.white.withValues(alpha: 0.96),
+            _orbBase.withValues(alpha: 0.90),
+            _orbBlue.withValues(alpha: 0.78),
+            _orbViolet.withValues(alpha: 0.70),
           ],
-          stops: [0.0, 0.50, 1.0],
+          stops: const [0.0, 0.28, 0.62, 1.0],
         ).createShader(rect),
     );
 
@@ -1259,10 +1411,10 @@ class _GlobeBodyPainter extends CustomPainter {
       r,
       Paint()
         ..shader = RadialGradient(
-          center: const Alignment(0.3, 0.75),
-          radius: 0.70,
+          center: const Alignment(0.42, 0.72),
+          radius: 0.76,
           colors: [
-            _pinkPurple.withValues(alpha: 0.18),
+            _orbPink.withValues(alpha: 0.34),
             Colors.transparent,
           ],
         ).createShader(rect),
@@ -1289,8 +1441,8 @@ class _GlobeBodyPainter extends CustomPainter {
           center: const Alignment(-0.55, -0.60),
           radius: 0.50,
           colors: [
-            Colors.white.withValues(alpha: 0.26),
-            Colors.white.withValues(alpha: 0.05),
+            Colors.white.withValues(alpha: 0.62),
+            Colors.white.withValues(alpha: 0.14),
             Colors.transparent,
           ],
           stops: const [0.0, 0.35, 1.0],
@@ -1299,21 +1451,14 @@ class _GlobeBodyPainter extends CustomPainter {
 
     canvas.restore();
 
-    // ── ③ 边缘暗边：加深轮廓，增加球体立体感 ─────────────────────────────
+    // ── ③ 白色玻璃描边 ───────────────────────────────────────────────────
     canvas.drawCircle(
       center,
       r,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = r * 0.055
-        ..shader = RadialGradient(
-          radius: 1.0,
-          colors: [
-            Colors.transparent,
-            _purpleDeep.withValues(alpha: 0.88),
-          ],
-          stops: const [0.82, 1.0],
-        ).createShader(rect),
+        ..strokeWidth = 1.4
+        ..color = _rim.withValues(alpha: 0.86),
     );
   }
 
@@ -1321,14 +1466,14 @@ class _GlobeBodyPainter extends CustomPainter {
     // 主纬线每 20°，高亮
     final mainPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.7
-      ..color = _violet.withValues(alpha: 0.55)
+      ..strokeWidth = 0.65
+      ..color = _gridLavender.withValues(alpha: 0.22)
       ..isAntiAlias = true;
     // 细分纬线每 10°（主纬线之间），稍暗
     final subPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.45
-      ..color = _violet.withValues(alpha: 0.28)
+      ..strokeWidth = 0.4
+      ..color = _gridLavender.withValues(alpha: 0.13)
       ..isAntiAlias = true;
 
     for (var latDeg = -80; latDeg <= 80; latDeg += 10) {
@@ -1342,9 +1487,16 @@ class _GlobeBodyPainter extends CustomPainter {
     bool drawing = false;
     for (var lngDeg = -180; lngDeg <= 182; lngDeg += 2) {
       final p = _proj(latR, lngDeg * pi / 180);
-      if (p == null) { drawing = false; continue; }
-      if (!drawing) { path.moveTo(p.dx, p.dy); drawing = true; }
-      else { path.lineTo(p.dx, p.dy); }
+      if (p == null) {
+        drawing = false;
+        continue;
+      }
+      if (!drawing) {
+        path.moveTo(p.dx, p.dy);
+        drawing = true;
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
     }
     canvas.drawPath(path, paint);
   }
@@ -1353,14 +1505,14 @@ class _GlobeBodyPainter extends CustomPainter {
     // 主经线每 20°
     final mainPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.7
-      ..color = _violet.withValues(alpha: 0.48)
+      ..strokeWidth = 0.65
+      ..color = _gridLavender.withValues(alpha: 0.20)
       ..isAntiAlias = true;
     // 细分经线每 10°
     final subPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.45
-      ..color = _violet.withValues(alpha: 0.24)
+      ..strokeWidth = 0.4
+      ..color = _gridLavender.withValues(alpha: 0.11)
       ..isAntiAlias = true;
 
     for (var lngDeg = -180; lngDeg < 180; lngDeg += 10) {
@@ -1374,9 +1526,16 @@ class _GlobeBodyPainter extends CustomPainter {
     bool drawing = false;
     for (var latDeg = -90; latDeg <= 92; latDeg += 2) {
       final p = _proj(latDeg * pi / 180, lngR);
-      if (p == null) { drawing = false; continue; }
-      if (!drawing) { path.moveTo(p.dx, p.dy); drawing = true; }
-      else { path.lineTo(p.dx, p.dy); }
+      if (p == null) {
+        drawing = false;
+        continue;
+      }
+      if (!drawing) {
+        path.moveTo(p.dx, p.dy);
+        drawing = true;
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
     }
     canvas.drawPath(path, paint);
   }
@@ -1385,15 +1544,15 @@ class _GlobeBodyPainter extends CustomPainter {
     // 赤道：外层柔光 + 内层亮线
     final glowPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..color = _violetBright.withValues(alpha: 0.30)
+      ..strokeWidth = 2.6
+      ..color = _orbViolet.withValues(alpha: 0.18)
       ..isAntiAlias = true;
     _drawLatCircle(canvas, 0, glowPaint);
 
     final corePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = _violetBright.withValues(alpha: 0.88)
+      ..strokeWidth = 1.0
+      ..color = _gridLavender.withValues(alpha: 0.38)
       ..isAntiAlias = true;
     _drawLatCircle(canvas, 0, corePaint);
   }
@@ -1408,7 +1567,7 @@ class _GlobeBodyPainter extends CustomPainter {
         Paint()
           ..shader = RadialGradient(
             colors: [
-              _pinkPurple.withValues(alpha: entry.$2),
+              _orbPink.withValues(alpha: entry.$2 * 0.45),
               Colors.transparent,
             ],
           ).createShader(Rect.fromCircle(center: p, radius: r * 0.12)),
@@ -1636,9 +1795,9 @@ class _StarPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFFEEF0FF),
-            Color(0xFFF7F7FA),
-            Color(0xFFE8EAFF),
+            Color(0xFFFCFAFF),
+            Color(0xFFF7F2FB),
+            Color(0xFFFDFBFF),
           ],
           stops: [0.0, 0.5, 1.0],
         ).createShader(Offset.zero & size),
@@ -1647,8 +1806,8 @@ class _StarPainter extends CustomPainter {
     final paint = Paint()..isAntiAlias = true;
     for (final s in stars) {
       paint.color =
-          Color.lerp(const Color(0xFF9B72FF), const Color(0xFF5B48E8), 0.45)!
-              .withValues(alpha: s.opacity * 0.35);
+          Color.lerp(const Color(0xFFE7D6FF), const Color(0xFFFFD8F0), 0.45)!
+              .withValues(alpha: s.opacity * 0.28);
       canvas.drawCircle(
         Offset(s.pos.dx * size.width, s.pos.dy * size.height),
         s.size,
