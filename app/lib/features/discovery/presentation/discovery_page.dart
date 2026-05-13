@@ -239,7 +239,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
 
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 72, 20, 0),
+        padding: const EdgeInsets.fromLTRB(20, 52, 20, 0),
         child: SizedBox(
           width: double.infinity,
           child: Column(
@@ -264,7 +264,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
                 introText,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 9,
                   fontWeight: FontWeight.w500,
                   height: 1.42,
                   color: Color(0xFF111118),
@@ -324,7 +324,7 @@ class _DiscoveryPageState extends ConsumerState<DiscoveryPage>
 
         return SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.only(top: 78),
+            padding: const EdgeInsets.only(top: 48),
             child: SizedBox(
               height: cardHeight + 8,
               child: PageView.builder(
